@@ -13,6 +13,8 @@
 #include <XBee.h>
 #include <Printers.h>
 #include <AltSoftSerial.h>
+#include "Adafruit_SHT31.h"
+#include "binary.h"
 
 XBeeWithCallbacks xbee;
 
@@ -20,11 +22,14 @@ AltSoftSerial SoftSerial;
 #define DebugSerial Serial
 #define XBeeSerial SoftSerial
 
+Adafruit_SHT31 SHT31_a = Adafruit_SHT31();
+
 void setup() {
   // Setup debug serial output
   DebugSerial.begin(115200);
   DebugSerial.println(F("Starting..."));
 
+  SHT31_a.begin(0x44);
   // Setup XBee serial communication
   XBeeSerial.begin(9600);
   xbee.begin(XBeeSerial);
@@ -36,12 +41,22 @@ void setup() {
 
 
 void sendPacket() {
+    
+    float a_Temp = SHT31_a.readTemperature();
+    float a_Hum = SHT31_a.readHumidity();
+  
     // Prepare the Zigbee Transmit Request API packet
     ZBTxRequest txRequest;
     txRequest.setAddress64(0x0000000000FFFF);
-    uint8_t payload[] = {'H', 'e', 'l', 'l', 'o', ',', ' ', 'A', 'L', 'C', 'O', 'M', 'I', 'J',};
-    txRequest.setPayload(payload, sizeof(payload));
 
+    AllocBuffer<27> packet;
+    packet.append<uint8_t>('A');
+    packet.append<float>(a_Temp);
+    packet.append<float>(a_Hum);
+    txRequest.setPayload(packet.head, packet.len());
+    
+    DebugSerial.print(F("Sending "));
+    DebugSerial.println(packet.len());
     // And send it
     uint8_t status = xbee.sendAndWait(txRequest, 5000);
     if (status == 0) {
@@ -53,12 +68,22 @@ void sendPacket() {
 }
 
 void processRxPacket(ZBRxResponse& rx, uintptr_t) {
-  DebugSerial.print(F("Received packet from "));
-  printHex(DebugSerial, rx.getRemoteAddress64());
-  DebugSerial.println();
-  DebugSerial.print(F("Payload: "));
-  DebugSerial.write(rx.getData(), rx.getDataLength());
-  DebugSerial.println();
+    DebugSerial.print(F("Received packet from "));
+    printHex(DebugSerial, rx.getRemoteAddress64());
+    DebugSerial.println();
+    DebugSerial.print(F("Payload size: "));
+    DebugSerial.print(rx.getDataLength());
+    DebugSerial.println();
+    Buffer b = Buffer(rx.getData(), rx.getDataLength());
+    uint8_t type = b.remove<uint8_t>();
+    if (type == 'A' ) {
+        float his_temp = b.remove<float>();
+        float his_humidity = b.remove<float>();
+        DebugSerial.print(F("His temperature:"));
+        DebugSerial.println(his_temp);
+        DebugSerial.print(F("His humidity:"));
+        DebugSerial.println(his_humidity);
+    }
 }
 
 unsigned long last_tx_time = 0;
