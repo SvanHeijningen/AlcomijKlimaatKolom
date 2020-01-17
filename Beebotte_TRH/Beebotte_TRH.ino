@@ -4,7 +4,7 @@
 #include <ArduinoJson.h>
 #include "Adafruit_SHT31.h"
 
-#define LEDPIN            7         // Pin which is connected to LED.
+#define LEDPIN            5         // Pin which is connected to LED.
 #define FANPIN            6         // Pin which is connected to FAN.
 
 #define BBT "mqtt.beebotte.com"     // Domain name of Beebotte MQTT service
@@ -82,7 +82,7 @@ void onMessage(char* topic, byte* payload, unsigned int length) {
   Serial.println();
 
   if (strcmp(topic,"Arduinno/Led")==0)  
-  digitalWrite(LEDPIN, data ? HIGH : LOW);
+  analogWrite(LEDPIN, PWM);
 
   if (strcmp(topic,"Arduinno/Fan")==0)
   analogWrite(FANPIN, PWM);
