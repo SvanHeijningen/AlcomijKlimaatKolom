@@ -13,17 +13,15 @@
 #include <XBee.h>
 #include <Printers.h>
 #include <AltSoftSerial.h>
-#include <DHT.h>
+#include "Adafruit_SHT31.h"
 #include "binary.h"
 
 XBeeWithCallbacks xbee;
+Adafruit_SHT31 sht31 = Adafruit_SHT31();
 
 AltSoftSerial SoftSerial;
 #define DebugSerial Serial
 #define XBeeSerial SoftSerial
-
-// Sensor type is DHT22, connected to pin D4.
-DHT dht(4, DHT22);
 
 void setup() {
   // Setup debug serial output
@@ -39,8 +37,8 @@ void setup() {
   xbee.onPacketError(printErrorCb, (uintptr_t)(Print*)&DebugSerial);
   xbee.onResponse(printErrorCb, (uintptr_t)(Print*)&DebugSerial);
 
-  // Setup DHT sensor
-  dht.begin();
+  // Setup SHT sensor
+  sht31.begin(0x44);
 
   // Send a first packet right away
   sendPacket();
@@ -56,8 +54,8 @@ void sendPacket() {
 
     // Packet type, temperature, humidity
     packet.append<uint8_t>(1);
-    packet.append<float>(dht.readTemperature());
-    packet.append<float>(dht.readHumidity());
+    packet.append<float>(sht31.readTemperature());
+    packet.append<float>(sht31.readHumidity());
     txRequest.setPayload(packet.head, packet.len());
 
     // And send it

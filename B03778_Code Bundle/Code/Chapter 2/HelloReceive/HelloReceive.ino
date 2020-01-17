@@ -43,7 +43,14 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
   DebugSerial.println();
 }
 
+unsigned long last_tx_time = 0;
+
 void loop() {
   // Check the serial port to see if there is a new packet available
   xbee.loop();
+  // log a mark every 10 seconds
+  if (millis() - last_tx_time > 10000) {
+    last_tx_time = millis();
+    DebugSerial.println("Still here");
+  }
 }

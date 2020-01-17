@@ -31,7 +31,7 @@
 #include <Printers.h>
 #include <AltSoftSerial.h>
 #include "binary.h"
-#include <Ethernet.h>
+#include <Ethernet2.h>
 #include <SPI.h>
 #include <Adafruit_MQTT.h>
 #include <Adafruit_MQTT_Client.h>
@@ -45,7 +45,7 @@ AltSoftSerial SoftSerial;
 
 // Enter a MAC address for your controller below. Newer Ethernet
 // shields have a MAC address printed on a sticker on the shield
-byte mac[] = { 0x00, 0x00, 0x5E, 0x00, 0x53, 0x00 };
+byte mac[] = { 0xA8, 0x61, 0x0A, 0xAE, 0x3E, 0xAB };
 
 // Ethernet client object, handling a single TCP connection
 EthernetClient client;
@@ -53,9 +53,9 @@ EthernetClient client;
 // Store the MQTT server, client ID, username, and password in flash memory.
 // This is required for using the Adafruit MQTT library.
 const char MQTT_SERVER[] PROGMEM    = "mqtt.beebotte.com";
-const char MQTT_CLIENTID[] PROGMEM  = "";
-const char MQTT_USERNAME[] PROGMEM  = "your_key_here";
-const char MQTT_PASSWORD[] PROGMEM  = "";
+const char MQTT_CLIENTID[] PROGMEM  = "sheijning";
+const char MQTT_USERNAME[] PROGMEM  = "token_qF5T7aLxxQ3xAR91";
+const char MQTT_PASSWORD[] PROGMEM  = "2bV>(Y~#NkaZd(gk";
 const int MQTT_PORT = 1883;
 
 // MQTT object using the CC3000 Client object
@@ -96,15 +96,15 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
   uint8_t type = b.remove<uint8_t>();
   XBeeAddress64 addr = rx.getRemoteAddress64();
 
-  if (addr == 0x0013A20040DADEE0 && type == 1 && b.len() == 8) {
-      publish(F("Livingroom/Temperature"), b.remove<float>());
-      publish(F("Livingroom/Humidity"), b.remove<float>());
+  if (addr == 0x0013A20041529A75 && type == 1 && b.len() == 8) {
+      publish(F("Temperature_1"), b.remove<float>());
+      publish(F("Humidity_1"), b.remove<float>());
       return;
   }
 
-  if (addr == 0x0013A20040E2C832 && type == 1 && b.len() == 8) {
-      publish(F("Study/Temperature"), b.remove<float>());
-      publish(F("Study/Humidity"), b.remove<float>());
+  if (addr == 0x0013A20041529A64 && type == 1 && b.len() == 8) {
+      publish(F("Temperature_2"), b.remove<float>());
+      publish(F("Humidity_2"), b.remove<float>());
       return;
   }
 
@@ -125,6 +125,7 @@ void connect() {
   else
     DebugSerial.println(mqtt.connectErrorString(ret));
 }
+
 void setup() {
   // Setup debug output through USB
   DebugSerial.begin(115200);
