@@ -36,8 +36,8 @@ void setup() {
 void sendPacket() {
     // Prepare the Zigbee Transmit Request API packet
     ZBTxRequest txRequest;
-    txRequest.setAddress64(0x00000000000000);
-    uint8_t payload[] = {'H', 'e', 'l', 'l', 'o', ',', ' ', 'A', 'L', 'C', 'O', 'M', 'I', 'J',};
+    txRequest.setAddress64(0x0000000000000000);
+    uint8_t payload[] = {'H', 'e', 'l', 'l', 'o', ',', ' ', 'w', 'o', 'r', 'l', 'd', '!'};
     txRequest.setPayload(payload, sizeof(payload));
 
     // And send it

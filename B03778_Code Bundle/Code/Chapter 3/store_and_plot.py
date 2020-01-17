@@ -47,9 +47,9 @@ DBFILE = 'data.db'
 BAUD = 115200
 
 # For Linux, e.g.
-#SERIAL = '/dev/ttyACM0'
+SERIAL = '/dev/ttyACM0'
 # For Windows, e.g.:
-SERIAL = 'COM3'
+#SERIAL = 'COM12'
 # For OSX, e.g.:
 #SERIAL = '/dev/tty.usbmodem123'
 
