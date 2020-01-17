@@ -43,6 +43,9 @@ IPAddress ip(192,168,2,22); //192.168.2.22
 EthernetClient ethClient;
 PubSubClient client(ethClient);
 
+// to track delay since last reconnection
+unsigned long lastReconnectAttempt = 0;
+
 void setup() {
   // Setup debug serial output
   DebugSerial.begin(115200);
@@ -51,8 +54,23 @@ void setup() {
   // Setup XBee serial communication
   XBeeSerial.begin(9600);
   xbee.begin(XBeeSerial);
-  delay(1);
+  
+  client.setServer(BBT, 1883);
 
+  // start the Ethernet connection:
+  if (Ethernet.begin(mac) == 0) {
+    Serial.println("Failed to configure Ethernet using DHCP");
+    // try to congifure using static IP address instead of DHCP:
+    // Feel free to change this according to your network settings
+    Ethernet.begin(mac, ip);
+  }
+
+  // give the Ethernet shield a second to initialize:
+  delay(1000);
+
+  Serial.println("Connecting...");
+  lastReconnectAttempt = 0;
+  
   // Setup callbacks
   xbee.onZBRxResponse(processRxPacket);
 }
@@ -88,10 +106,12 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
 // publishes data to the specified resource
 void publish(const char* resource, const char* mac, float data, bool persist)
 {
+  char resource_with_mac[64];
+  sprintf(resource_with_mac, "%s_%s", mac, resource);
   StaticJsonBuffer<128> jsonOutBuffer;
   JsonObject& root = jsonOutBuffer.createObject();
   root["channel"] = CHANNEL;
-  root["resource"] = resource;
+  root["resource"] = resource_with_mac;
   if (persist) {
     root["write"] = true;
   }
@@ -102,8 +122,8 @@ void publish(const char* resource, const char* mac, float data, bool persist)
   root.printTo(buffer, sizeof(buffer));
   
   // Create the topic to publish to
-  char topic[64];
-  sprintf(topic, "%s/%s/%s", CHANNEL, mac, resource);
+  char topic[44];
+  sprintf(topic, "%s/%s", CHANNEL, resource_with_mac);
 
   DebugSerial.println("Sending to topic:");
   DebugSerial.println(topic);
@@ -112,6 +132,31 @@ void publish(const char* resource, const char* mac, float data, bool persist)
   // Now publish the char buffer to Beebotte
   client.publish(topic, buffer);
 }
+
+
+// reconnects to Beebotte MQTT server
+boolean reconnect() {
+  if (client.connect(generateID(), TOKEN, "")) {
+    Serial.println("Connected to Beebotte MQTT");
+  }
+  return client.connected();
+}
+
+
+char id[17]; // Identifier for the MQTT connection - will set it randomly
+const char * generateID()
+{ 
+  char chars[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
+  randomSeed(analogRead(0));
+  int i = 0;
+  for(i = 0; i < sizeof(id) - 1; i++) {
+    id[i] = chars[random(sizeof(chars))];
+  }
+  id[sizeof(id) -1] = '\0';
+
+  return id;
+}
+
 
 unsigned long last_tx_time = 0;
 
@@ -123,4 +168,16 @@ void loop() {
     last_tx_time = millis();
     DebugSerial.println("Still here");
   }
+  if (!client.connected()) {
+    unsigned long now = millis();
+    if (now - lastReconnectAttempt > 5000) {
+      lastReconnectAttempt = now;
+      // Attempt to reconnect
+      if (reconnect()) {
+        lastReconnectAttempt = 0;
+      }
+    }
+  } else {
+    client.loop();
+  }  
 }
