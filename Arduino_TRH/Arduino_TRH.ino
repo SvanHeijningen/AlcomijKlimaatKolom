@@ -1,21 +1,20 @@
+
 #include <SPI.h>
 #include <Ethernet.h>
 #include <PubSubClient.h>
-#include <ArduinoJson.h>
 #include "Adafruit_SHT31.h"
 
 #define LEDPIN            5         // Pin which is connected to LED.
 #define FANPIN            6         // Pin which is connected to FAN.
 
-#define BBT "mqtt.beebotte.com"     // Domain name of Beebotte MQTT service
-#define TOKEN "token:token_7PdJmhz4OAi8Lrd6"    // Set your channel token here
-#define CHANNEL "Arduinno"          // Replace with your device name
+#define TOKEN "IbG1vPQ4Y1r2hd8HYeo8"
+char thingsboardServer[] = "http://localhost:8080";
+
 #define TEMP_RESOURCE "temperature" // This is where we will store temperature
 #define HUMID_RESOURCE "humidity"   // This is where we will store humidity
 #define LED_RESOURCE "Led"
 #define PWM_RESOURCE "Fan"
 #define WRITE true // indicate if published data should be persisted or not
-
 
 // Initialize SHT sensor.
 Adafruit_SHT31 sht31 = Adafruit_SHT31();

@@ -24,7 +24,8 @@ Adafruit_SHT31 sht31 = Adafruit_SHT31();
 // It might be printed on a sticker on the shield
 byte mac[] = { 0xA8, 0x61, 0x0A, 0xAE, 0x3E, 0xAB };
 
-IPAddress ip(192,168,2,22); //192.168.2.22
+IPAddress ip(10,2,0,23); //192.168.2.22  of  10.2.0.23
+
 EthernetClient ethClient;
 PubSubClient client(ethClient);
 
