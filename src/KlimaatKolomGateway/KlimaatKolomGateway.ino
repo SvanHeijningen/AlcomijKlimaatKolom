@@ -16,15 +16,12 @@
 
 #include <XBee.h>
 #include <Printers.h>
-#include <AltSoftSerial.h>
 #include "binary.h"
 
 XBeeWithCallbacks xbee;
 
-AltSoftSerial SoftSerial;
 #define DebugSerial Serial
-#define XBeeSerial SoftSerial
-
+#define XBeeSerial Serial1
 
 #define BBT "mqtt.beebotte.com"     // Domain name of Beebotte MQTT service
 #define TOKEN "token:token_7PdJmhz4OAi8Lrd6"    // Set your channel token here
