@@ -1,3 +1,5 @@
+#include <NtpClientLib.h>
+
 #include <Printers.h>
 #include <XBee.h>
 
@@ -51,6 +53,8 @@ void setup()
   Ethernet.begin(mac);
   // Allow the hardware to sort itself out
   delay(1500);
+  NTP.begin (); // Only statement needed to start NTP sync.
+
 }
 
 void loop()
@@ -167,9 +171,9 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
         sprintf(mac, "%.2X%.2X%.2X%.2X%.2X%.2X%.2X%.2X", addr[3], addr[2], addr[1], addr[0], addr[7], addr[6], addr[5], addr[4]);
         
         const int data_items = 3;
-        tb.connectDevice(mac);
-        
-        tb.sendTelemetryForDeviceJson(mac, temperature, humidity);
+      //  tb.connectDevice(mac);
+        long ts = now();       
+        tb.sendTelemetryForDeviceJson(mac, ts, temperature, humidity);
                 
     }
 }
