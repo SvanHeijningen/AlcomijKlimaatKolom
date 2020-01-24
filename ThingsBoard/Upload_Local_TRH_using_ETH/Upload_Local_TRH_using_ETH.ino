@@ -1,8 +1,9 @@
+#include <Adafruit_SHT31.h>
+
 #include <ThingsBoard.h>
 #include <SPI.h>
 #include <Ethernet.h>
 #include <PubSubClient.h>
-#include "Adafruit_SHT31.h"
 
 // Helper macro to calculate array size
 #define COUNT_OF(x) ((sizeof(x)/sizeof(0[x])) / ((size_t)(!(sizeof(x) % sizeof(0[x])))))
@@ -32,6 +33,7 @@ void setup()
     ; // wait for serial port to connect. Needed for native USB port only
   }
 
+  Wire.setClock(400000);
   // Setup SHT sensor
   sht31.begin(0x44);   // Set to 0x45 for alternate i2c addr
   
@@ -44,16 +46,13 @@ void loop()
 {
   if ( !tb.connected() ) {
     reconnect();
-  }
-
+  }  
+  tb.loop();
+  Ethernet.maintain();
   if ( millis() - lastSend > 1000 ) { // Update and send only after 1 seconds
     getAndSendTemperatureAndHumidityData();
     lastSend = millis();
-  }
-
-  tb.loop();
-  Ethernet.maintain();
-  
+  } 
 }
 
 // Processes function for RPC call "getValue"
