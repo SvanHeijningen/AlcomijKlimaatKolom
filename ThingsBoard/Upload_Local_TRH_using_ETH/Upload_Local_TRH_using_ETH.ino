@@ -3,7 +3,7 @@
 
 #include <Adafruit_SHT31.h>
 
-#include <ThingsBoard.h>
+#include "ThingsBoard.h"
 #include <SPI.h>
 #include <Ethernet.h>
 #include <PubSubClient.h>
@@ -13,7 +13,7 @@
 #define COUNT_OF(x) ((sizeof(x)/sizeof(0[x])) / ((size_t)(!(sizeof(x) % sizeof(0[x])))))
 
 // Update these with values suitable for your network.
-byte mac[]    = {  0xA8, 0x61, 0x0A, 0xAE, 0x3E, 0xAB };
+byte mac[]    = { 0xA8, 0x61, 0x0A, 0xAE, 0x3E, 0xAB };
 
 char thingsboardServer[] = "10.2.0.122";
  
@@ -26,7 +26,7 @@ int pwm = 0;
 bool subscribed = false;
 
 EthernetClient ethClient;
-ThingsBoard tb(ethClient);
+ThingsBoardSized<128> tb(ethClient);
 
 #define XBeeSerial Serial1
 
@@ -167,11 +167,9 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
         sprintf(mac, "%.2X%.2X%.2X%.2X%.2X%.2X%.2X%.2X", addr[3], addr[2], addr[1], addr[0], addr[7], addr[6], addr[5], addr[4]);
         
         const int data_items = 3;
-        Telemetry data[data_items] = {
-          { "temperature", temperature },
-          { "humidity",    humidity },
-          { "originmac",   mac },
-        };
-        tb.sendTelemetry(data, data_items);        
+        tb.connectDevice(mac);
+        
+        tb.sendTelemetryForDeviceJson(mac, temperature, humidity);
+                
     }
 }
