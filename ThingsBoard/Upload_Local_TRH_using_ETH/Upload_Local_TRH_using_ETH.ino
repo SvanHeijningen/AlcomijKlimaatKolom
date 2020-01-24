@@ -1,9 +1,13 @@
+#include <Printers.h>
+#include <XBee.h>
+
 #include <Adafruit_SHT31.h>
 
 #include <ThingsBoard.h>
 #include <SPI.h>
 #include <Ethernet.h>
 #include <PubSubClient.h>
+#include "binary.h"
 
 // Helper macro to calculate array size
 #define COUNT_OF(x) ((sizeof(x)/sizeof(0[x])) / ((size_t)(!(sizeof(x) % sizeof(0[x])))))
@@ -26,6 +30,10 @@ bool subscribed = false;
 EthernetClient ethClient;
 ThingsBoard tb(ethClient);
 
+#define XBeeSerial Serial1
+
+XBeeWithCallbacks xbee;
+
 void setup()
 {
   Serial.begin(115200);
@@ -33,6 +41,12 @@ void setup()
     ; // wait for serial port to connect. Needed for native USB port only
   }
 
+
+  XBeeSerial.begin(9600);
+  xbee.begin(XBeeSerial);
+  // Setup callbacks
+  xbee.onZBRxResponse(processRxPacket);
+  
   Wire.setClock(400000);
   // Setup SHT sensor
   sht31.begin(0x44);   // Set to 0x45 for alternate i2c addr
@@ -48,10 +62,12 @@ void loop()
     reconnect();
   }  
   tb.loop();
+  int timestamp = millis();
   Ethernet.maintain();
-  if ( millis() - lastSend > 1000 ) { // Update and send only after 1 seconds
+  if ( timestamp - lastSend > 1000 ) { // Update and send only after 1 seconds
+    Serial.println( timestamp - lastSend);
+    lastSend = timestamp;
     getAndSendTemperatureAndHumidityData();
-    lastSend = millis();
   } 
 }
 
@@ -103,6 +119,7 @@ void getAndSendTemperatureAndHumidityData()
 
   // Reading temperature or humidity takes about 250 milliseconds!
   float humidity = sht31.readHumidity();
+  
   // Read temperature as Celsius (the default)
   float temperature = sht31.readTemperature();
 
@@ -140,17 +157,54 @@ void reconnect() {
       delay( 5000 );
     }
     if (!subscribed) {
-    Serial.println("Subscribing for RPC...");
-
-    // Perform a subscription. All consequent data processing will happen in
-    // callbacks as denoted by callbacks[] array.
-    if (!tb.RPC_Subscribe(callbacks, COUNT_OF(callbacks))) {
-      Serial.println("Failed to subscribe for RPC");
-      return;
+      Serial.println("Subscribing for RPC...");
+  
+      // Perform a subscription. All consequent data processing will happen in
+      // callbacks as denoted by callbacks[] array.
+      if (!tb.RPC_Subscribe(callbacks, COUNT_OF(callbacks))) {
+        Serial.println("Failed to subscribe for RPC");
+        return;
+      }
+  
+      Serial.println("Subscribe done");
+      subscribed = true;
     }
+  }
+}
 
-    Serial.println("Subscribe done");
-    subscribed = true;
-  }
-  }
+void processRxPacket(ZBRxResponse& rx, uintptr_t) {
+    XBeeAddress64 remoteAddress = rx.getRemoteAddress64();
+    Serial.print(F("Received packet from "));
+    
+    printHex(Serial, remoteAddress );
+    Serial.println();
+    Serial.print(F("Payload size: "));
+    Serial.print(rx.getDataLength());
+    Serial.println();
+    Buffer b = Buffer(rx.getData(), rx.getDataLength());
+    uint8_t type = b.remove<uint8_t>();
+    if (type == 'A' ) {
+        float temperature = b.remove<float>();
+        float humidity = b.remove<float>();
+        Serial.print(F("His temperature:"));
+        Serial.println(temperature);
+        Serial.print(F("His humidity:"));
+        Serial.println(humidity);
+
+        if (!tb.connected()) {
+          Serial.print(F("Not connected"));
+          return;
+        }
+        char mac[16];
+        byte* addr = (byte*)&remoteAddress;
+        sprintf(mac, "%.2X%.2X%.2X%.2X%.2X%.2X%.2X%.2X", addr[3], addr[2], addr[1], addr[0], addr[7], addr[6], addr[5], addr[4]);
+        
+        const int data_items = 3;
+        Telemetry data[data_items] = {
+          { "temperature", temperature },
+          { "humidity",    humidity },
+          { "originmac",   mac },
+        };
+        tb.sendTelemetry(data, data_items);        
+    }
 }
