@@ -47,8 +47,6 @@ void setup()
   xbee.onZBRxResponse(processRxPacket);
   
   Wire.setClock(400000);
-  // Setup SHT sensor
-  sht31.begin(0x44);   // Set to 0x45 for alternate i2c addr
   
   Ethernet.begin(mac);
   // Allow the hardware to sort itself out
@@ -110,37 +108,6 @@ RPC_Callback callbacks[] = {
   { "setValue",         processSetValue },
   { "getValue",         processGetValue },
 };
-
-
-
-void getAndSendTemperatureAndHumidityData()
-{
-  Serial.println("Collecting temperature data.");
-
-  // Reading temperature or humidity takes about 250 milliseconds!
-  float humidity = sht31.readHumidity();
-  
-  // Read temperature as Celsius (the default)
-  float temperature = sht31.readTemperature();
-
-  // Check if any reads failed and exit early (to try again).
-  if (isnan(humidity) || isnan(temperature)) {
-    Serial.println("Failed to read from DHT sensor!");
-    return;
-  }
-
-  Serial.println("Sending data to ThingsBoard:");
-  Serial.print("Humidity: ");
-  Serial.print(humidity);
-  Serial.print(" %\t");
-  Serial.print("Temperature: ");
-  Serial.print(temperature);
-  Serial.println(" *C ");
-
-  tb.sendTelemetryFloat("temperature", temperature);
-  tb.sendTelemetryFloat("humidity", humidity);
-}
-
 
 void reconnect() {
   // Loop until we're reconnected
