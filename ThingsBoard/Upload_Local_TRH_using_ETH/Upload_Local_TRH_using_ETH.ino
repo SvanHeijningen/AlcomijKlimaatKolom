@@ -16,9 +16,7 @@
 byte mac[]    = {  0xA8, 0x61, 0x0A, 0xAE, 0x3E, 0xAB };
 
 char thingsboardServer[] = "10.2.0.122";
-// Initialize SHT sensor.
-Adafruit_SHT31 sht31 = Adafruit_SHT31();
-  
+ 
 #define TOKEN "IbG1vPQ4Y1r2hd8HYeo8" // ThingsBoard Device Auth Token
 
 int lastSend = 0;
@@ -40,6 +38,7 @@ void setup()
     while (!Serial) {
     ; // wait for serial port to connect. Needed for native USB port only
   }
+  Serial.println("Hello");
 
 
   XBeeSerial.begin(9600);
@@ -57,18 +56,19 @@ void setup()
 }
 
 void loop()
-{
+{  
+  int timestamp = millis();
+  if ( timestamp - lastSend > 10000 ) { // Keepalive
+    Serial.println( ".");
+    lastSend = timestamp;
+  } 
+  
   if ( !tb.connected() ) {
     reconnect();
   }  
   tb.loop();
-  int timestamp = millis();
   Ethernet.maintain();
-  if ( timestamp - lastSend > 1000 ) { // Update and send only after 1 seconds
-    Serial.println( timestamp - lastSend);
-    lastSend = timestamp;
-    getAndSendTemperatureAndHumidityData();
-  } 
+  xbee.loop();
 }
 
 // Processes function for RPC call "getValue"
