@@ -2,9 +2,6 @@
 
 #include <Printers.h>
 #include <XBee.h>
-
-#include <Adafruit_SHT31.h>
-
 #include "ThingsBoard.h"
 #include <SPI.h>
 #include <Ethernet.h>
@@ -47,8 +44,6 @@ void setup()
   xbee.begin(XBeeSerial);
   // Setup callbacks
   xbee.onZBRxResponse(processRxPacket);
-  
-  Wire.setClock(400000);
   
   Ethernet.begin(mac);
   // Allow the hardware to sort itself out
