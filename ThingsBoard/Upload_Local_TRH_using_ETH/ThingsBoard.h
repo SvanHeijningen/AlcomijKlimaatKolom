@@ -219,13 +219,13 @@ Message: {"device":"Device A"}
   ]
 }
 	*/
-	  char payload[128];
+	  char payload[256];
     char s_temp[6];
     char s_hum[6];
     dtostrf(temp, 4, 2, s_temp);
     dtostrf(hum, 4, 2, s_hum);
-    sprintf(payload, "{ \"KK%s\": [ { \"ts\": %i000 \"values\": { \"temperature\": %s, \"humidity\": %s } } ] }", device, unixTimeS, s_temp, s_hum);
-    
+    sprintf(payload, "{ \"KK%s\": [ { \"ts\": %ld000, \"values\": { \"temperature\": %s, \"humidity\": %s } } ] }", device, unixTimeS, s_temp, s_hum);
+
         Logger::log(payload);
     return m_client.publish("v1/gateway/telemetry", payload);
   }
