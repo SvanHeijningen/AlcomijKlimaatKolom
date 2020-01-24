@@ -227,7 +227,7 @@ Message: {"device":"Device A"}
     sprintf(payload, "{ \"KK%s\": [ { \"ts\": %ld000, \"values\": { \"temperature\": %s, \"humidity\": %s } } ] }", device, unixTimeS, s_temp, s_hum);
 
         Logger::log(payload);
-    return m_client.publish("v1/gateway/telemetry", payload);
+    return m_client.publish_P("v1/gateway/telemetry", payload, false);
   }
   //----------------------------------------------------------------------------
   // Attribute API
