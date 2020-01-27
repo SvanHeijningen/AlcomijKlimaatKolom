@@ -170,10 +170,11 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
         byte* addr = (byte*)&remoteAddress;
         sprintf(mac, "%.2X%.2X%.2X%.2X%.2X%.2X%.2X%.2X", addr[3], addr[2], addr[1], addr[0], addr[7], addr[6], addr[5], addr[4]);
         
-        const int data_items = 3;
-      //  tb.connectDevice(mac);
-        long ts = now();       
+        const int data_items = 3;   
         bool result;
+        result = tb.connectDevice(mac);
+        Serial.println(result);
+        long ts = now();     
         result = tb.sendTelemetryForDeviceJson(mac, ts, temperature, humidity);
         Serial.println(result);
     }
