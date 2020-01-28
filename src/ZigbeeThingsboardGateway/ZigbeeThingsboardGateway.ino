@@ -5,7 +5,10 @@
 #include "ThingsBoard.h"
 #include <SPI.h>
 #include <Ethernet.h>
+
+#define MQTT_MAX_PACKET_SIZE 256
 #include <PubSubClient.h>
+
 #include "binary.h"
 
 // Helper macro to calculate array size
