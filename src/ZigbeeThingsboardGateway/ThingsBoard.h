@@ -204,7 +204,7 @@ Message: {"device":"Device A"}
   }
 
   // Sends custom JSON telemetry string to the ThingsBoard.
-  inline bool sendTelemetryForDeviceJson(const char* device, long unixTimeS, float temp, float hum) {
+  inline bool sendTelemetryForDeviceJson(const char* device, long unixTimeS, float temp) {
     /* https://thingsboard.io/docs/reference/gateway-mqtt-api/
 	Topic: v1/gateway/telemetry
 {
@@ -223,12 +223,12 @@ Message: {"device":"Device A"}
     char s_temp[6];
     char s_hum[6];
     dtostrf(temp, 4, 2, s_temp);
-    dtostrf(hum, 4, 2, s_hum);
-    sprintf(payload, "{ \"KK%s\": [ { \"ts\": %ld000, \"values\": { \"temperature\": %s, \"humidity\": %s } } ] }", device, unixTimeS, s_temp, s_hum);
+    sprintf(payload, "{ \"KK%s\": [ { \"ts\": %ld000, \"values\": { \"temperature\": %s} } ] }", device, unixTimeS, s_temp);
 
         Logger::log(payload);
-    return m_client.publish_P("v1/gateway/telemetry", payload, false);
+    return m_client.publish_P("v1/gateway/telemetry", payload, true);
   }
+  
   //----------------------------------------------------------------------------
   // Attribute API
 

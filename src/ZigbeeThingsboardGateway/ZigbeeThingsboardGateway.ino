@@ -19,7 +19,7 @@ byte mac[]    = { 0xA8, 0x61, 0x0A, 0xAE, 0x3E, 0xAB };
 
 char thingsboardServer[] = "10.2.0.122";
  
-#define TOKEN "IbG1vPQ4Y1r2hd8HYeo8" // ThingsBoard Device Auth Token
+#define TOKEN "uWEc3OmSYGeKhWZcrT7W" // ThingsBoard Device Auth Token
 
 int lastSend = 0;
 int lastMaintain = 0;
@@ -28,7 +28,7 @@ int pwm = 0;
 bool subscribed = false;
 
 EthernetClient ethClient;
-ThingsBoardSized<128> tb(ethClient);
+ThingsBoardSized<256> tb(ethClient);
 
 #define XBeeSerial Serial1
 
@@ -173,7 +173,7 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
         result = tb.connectDevice(mac);
         Serial.println(result);
         long ts = now();     
-        result = tb.sendTelemetryForDeviceJson(mac, ts, temperature, humidity);
+        result = tb.sendTelemetryForDeviceJson(mac, ts, temperature);
         Serial.println(result);
     }
 }
