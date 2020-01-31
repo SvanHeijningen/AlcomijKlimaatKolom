@@ -173,7 +173,7 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
         result = tb.connectDevice(mac);
         Serial.println(result);
         long ts = now();     
-        result = tb.sendTelemetryForDeviceJson(mac, ts, temperature);
+        result = tb.sendTelemetryForDeviceJson(mac, ts, temperature, humidity);
         Serial.println(result);
     }
 }
