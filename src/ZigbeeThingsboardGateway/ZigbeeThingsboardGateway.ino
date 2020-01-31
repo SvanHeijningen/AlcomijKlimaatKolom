@@ -182,7 +182,8 @@ void reconnect() {
         Serial.println("Failed to subscribe for gateway RPC");
         return;
       }  
-      
+      // register broadcast device
+      tb.connectDevice("000000000000FFFF");
       Serial.println("Subscribe done");
       
       subscribed = true;
