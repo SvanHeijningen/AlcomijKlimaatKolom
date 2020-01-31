@@ -22,6 +22,9 @@ AltSoftSerial SoftSerial;
 #define DebugSerial Serial
 #define XBeeSerial SoftSerial
 
+#define FAN_PIN 5
+#define VALVE_SERVO_PIN 6
+
 Adafruit_SHT31 SHT31_a = Adafruit_SHT31();
 
 void setup() {
@@ -83,12 +86,16 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
         DebugSerial.println(his_temp);
         DebugSerial.print(F("His humidity:"));
         DebugSerial.println(his_humidity);
-    }
-     if (type == 'F' ) {
+    } else if (type == 'F' ) {
         uint8_t pwm = b.remove<uint8_t>();
-        DebugSerial.print(F("Desired PWM:"));
+        DebugSerial.print(F("Desired Fan PWM:"));
         DebugSerial.println(pwm);     
-        analogWrite(6, pwm);
+        analogWrite(FAN_PIN, pwm);
+    } else if (type == 'V' ) {
+        uint8_t pwm = b.remove<uint8_t>();
+        DebugSerial.print(F("Desired Valve servo PWM:"));
+        DebugSerial.println(pwm);     
+        analogWrite(VALVE_SERVO_PIN, pwm);
     }
 }
 
