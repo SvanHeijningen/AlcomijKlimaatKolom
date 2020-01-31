@@ -104,10 +104,53 @@ RPC_Response processSetValue(const RPC_Data &data)
   return RPC_Response(NULL, pwm);
 }
 
+RPC_Response processSetNodeFanPWM(const RPC_Data &data)
+{
+  Serial.println("Received the set value RPC method");
+/*
+  int pin = data["pin"];
+  int pwm = data["pwm"];
+  if( pin
+  */
+  const char *deviceName = data["device"];
+  Serial.print("for");
+  Serial.println(deviceName);
+  uint8_t newpwm = data["data"]["params"];
+  Serial.print("new pwm:");
+  Serial.println(newpwm);
+
+  // Prepare the Zigbee Transmit Request API packet
+  ZBTxRequest txRequest;
+  String device = String(deviceName);
+  long addressMsb = device.substring(2,10).toInt();
+  long addressLsb = device.substring(10).toInt();
+  txRequest.setAddress64(XBeeAddress64(addressMsb, addressLsb));
+
+  AllocBuffer<27> packet;
+  packet.append<uint8_t>('F');
+  packet.append<uint8_t>(newpwm);
+  txRequest.setPayload(packet.head, packet.len());
+  
+  Serial.print(F("Sending "));
+  Serial.println(packet.len());
+  // And send it
+  uint8_t status = xbee.sendAndWait(txRequest, 5000);
+  if (status == 0) {
+    Serial.println(F("Succesfully sent packet"));
+  } else {
+    Serial.print(F("Failed to send packet. Status: 0x"));
+    Serial.println(status, HEX);
+  }
+    
+  return RPC_Response(NULL, pwm);
+}
+
+
 // RPC handlers
 RPC_Callback callbacks[] = {
   { "setValue",         processSetValue },
   { "getValue",         processGetValue },
+  { "setFanPWM",        processSetNodeFanPWM },
 };
 
 void reconnect() {
