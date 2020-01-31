@@ -207,13 +207,19 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
     Buffer b = Buffer(rx.getData(), rx.getDataLength());
     uint8_t type = b.remove<uint8_t>();
     if (type == 'A' ) {
-        float temperature = b.remove<float>();
-        float humidity = b.remove<float>();
-        Serial.print(F("His temperature:"));
-        Serial.println(temperature);
-        Serial.print(F("His humidity:"));
-        Serial.println(humidity);
-
+        float temp_1 = b.remove<float>();
+        float humi_1 = b.remove<float>();        
+        float temp_3 = b.remove<float>();
+        float humi_3 = b.remove<float>();
+        float temp_2 = b.remove<float>();
+        float humi_2 = b.remove<float>();
+        float co2_2 = b.remove<float>();
+        float rpm = b.remove<float>();
+        Serial.print(F("=> temp_1:")); Serial.println(temp_1); 
+        Serial.print(F("=> temp_2:")); Serial.println(temp_2); 
+        Serial.print(F("=> temp_3:")); Serial.println(temp_3); 
+        Serial.print(F("=> co2_2: ")); Serial.println(co2_2); 
+        Serial.print(F("=> rpm:   ")); Serial.println(rpm); 
         if (!tb.connected()) {
           Serial.print(F("Not connected"));
           return;
@@ -227,7 +233,12 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
         result = tb.connectDevice(mac);
         Serial.println(result);
         long ts = now();     
-        result = tb.sendTelemetryForDeviceJson(mac, ts, temperature, humidity);
+        result = tb.sendTelemetryForDeviceJson(mac, ts,        
+         temp_1,
+         humi_1,
+         temp_3,
+         humi_3
+        );
         Serial.println(result);
         
     }

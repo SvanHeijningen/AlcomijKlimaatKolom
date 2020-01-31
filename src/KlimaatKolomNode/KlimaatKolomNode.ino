@@ -35,22 +35,23 @@ AltSoftSerial SoftSerial;
 Adafruit_SHT31 SHT31_a = Adafruit_SHT31();
 Adafruit_SHT31 SHT31_b = Adafruit_SHT31();
 SCD30 SCD30_a;
+long pulses = 0;
+long previousCalculationMs;
 
 void setup() {
   // Setup debug serial output
   DebugSerial.begin(115200);
   DebugSerial.println(F("Starting..."));
 
-
-  SoftPWMBegin();
+  SoftPWMBegin();   
+  //Set fan speed to a safe, low value
+  analogWrite(FAN_PIN, 0);
     
   SHT31_a.begin(0x44);
-  SHT31_a.begin(0x45);
+  SHT31_b.begin(0x45);
   if (SCD30_a.begin() == false)
   {
-    Serial.println("Air sensor not detected. Please check wiring. Freezing...");
-    while (1)
-      ;
+    Serial.println("Air sensor not detected. Please check wiring.");
   }
   // Setup XBee serial communication
   XBeeSerial.begin(9600);
@@ -59,25 +60,40 @@ void setup() {
 
   // Setup callbacks
   xbee.onZBRxResponse(processRxPacket);
+  
+  attachInterrupt(1/*pin 3*/, onPulse, FALLING);
+  previousCalculationMs = millis();
 }
 
 
 void sendPacket() {
-      
+      float   temp_1 = SHT31_a.readTemperature();
+      float   humi_1 = SHT31_a.readHumidity();
+      float   temp_3= SHT31_b.readTemperature();
+      float   humi_3 = SHT31_b.readHumidity();
+      float   temp_2 = SCD30_a.getTemperature();
+      float   humi_2= SCD30_a.getHumidity();
+      float   co2_2 = SCD30_a.getCO2();
+      float   rpm =calculateRPM();       
+        Serial.print(F("=> temp_1:")); Serial.println(temp_1); 
+        Serial.print(F("=> temp_2:")); Serial.println(temp_2); 
+        Serial.print(F("=> temp_3:")); Serial.println(temp_3); 
+        Serial.print(F("=> co2_2: ")); Serial.println(co2_2);  
+        Serial.print(F("=> rpm:   ")); Serial.println(rpm); 
     // Prepare the Zigbee Transmit Request API packet
     ZBTxRequest txRequest;
     txRequest.setAddress64(0x0000000000FFFF);
 
-    AllocBuffer<27> packet;
+    AllocBuffer<64> packet;
     packet.append<uint8_t>('A');
-    packet.append<float>(SHT31_a.readTemperature());
-    packet.append<float>(SHT31_a.readHumidity());
-    packet.append<float>(SHT31_b.readTemperature());
-    packet.append<float>(SHT31_b.readHumidity());
-    packet.append<float>(SCD30_a.getTemperature());
-    packet.append<float>(SCD30_a.getHumidity());
-    packet.append<float>(SCD30_a.getCO2());
-    
+    packet.append<float>(temp_1);
+    packet.append<float>(humi_1);
+    packet.append<float>(temp_3);
+    packet.append<float>(humi_3);
+    packet.append<float>(temp_2);
+    packet.append<float>(humi_2);
+    packet.append<float>(co2_2);
+    packet.append<float>(rpm);
     txRequest.setPayload(packet.head, packet.len());
     
     DebugSerial.print(F("Sending "));
@@ -90,6 +106,23 @@ void sendPacket() {
       DebugSerial.print(F("Failed to send packet. Status: 0x"));
       DebugSerial.println(status, HEX);
     }
+}
+
+void onPulse()
+{
+  pulses++;
+}
+
+float calculateRPM() {
+  // 2 pulses per revolution (datasheet)
+  float elapsedS = (millis() - previousCalculationMs)/1000.0;
+  float rpm = (60 * pulses / 2) / elapsedS;
+  
+  previousCalculationMs = millis();
+  pulses = 0;
+  Serial.print("RPM: ");
+  Serial.println(rpm);
+  return rpm;
 }
 
 void processRxPacket(ZBRxResponse& rx, uintptr_t) {

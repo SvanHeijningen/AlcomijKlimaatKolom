@@ -202,7 +202,12 @@ Message: {"device":"Device A"}
   }
 
   // Sends custom JSON telemetry string to the ThingsBoard.
-  inline bool sendTelemetryForDeviceJson(const char* device, long unixTimeS, float temp, float hum) {
+  inline bool sendTelemetryForDeviceJson(const char* device, long unixTimeS,
+      float   temp_1,
+      float   humi_1,
+      float   temp_3,
+      float   humi_3 
+) {
     /* https://thingsboard.io/docs/reference/gateway-mqtt-api/
 	Topic: v1/gateway/telemetry
 {
@@ -217,14 +222,27 @@ Message: {"device":"Device A"}
   ]
 }
 	*/
-	  char payload[MQTT_MAX_PACKET_SIZE];
-    char s_temp[6];
-    char s_hum[6];
-    dtostrf(temp, 4, 2, s_temp);
-    dtostrf(hum, 4, 2, s_hum);
-    sprintf(payload, "{ \"KK%s\": [ { \"ts\": %ld000, \"values\": { \"temperature\": %s, \"humidity\": %s } } ] }", device, unixTimeS, s_temp, s_hum);
-    Logger::log(payload);
-    return m_client.publish("v1/gateway/telemetry", payload, false);
+    char payload[MQTT_MAX_PACKET_SIZE];      
+    char s_temp_1[8];
+    char s_humi_1[8];
+    char s_temp_3[8];
+    char s_humi_3[8];
+    
+   Serial.println("_0");
+	dtostrf(temp_1, 4, 2, s_temp_1);
+	dtostrf(humi_1, 4, 2, s_humi_1);
+	dtostrf(temp_3, 4, 2, s_temp_3);
+	dtostrf(humi_3, 4, 2, s_humi_3);
+	
+	 Serial.println("_1");
+   sprintf(payload, "{ \"KK%s\": [ { \"ts\": %ld000, \"values\": {\"temp_1\": %s ,\"humi_1\": %s } } ] }",
+	 device, unixTimeS, 
+	 temp_1,
+	 humi_1);
+   Serial.println("_2");
+   Logger::log(payload);   
+   return m_client.publish("v1/gateway/telemetry", payload, false);
+  
   }
   
   //----------------------------------------------------------------------------
