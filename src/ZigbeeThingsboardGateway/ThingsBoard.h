@@ -6,11 +6,9 @@
 */
 #ifndef ThingsBoard_h
 #define ThingsBoard_h
-
 #ifndef ESP8266
 #include <ArduinoHttpClient.h>
 #endif
-
 #include "PubSubClient.h"
 #include <ArduinoJson.h>
 #include "ArduinoJson/Polyfills/type_traits.hpp"
@@ -334,12 +332,14 @@ private:
         return;
       }
       const JsonObject &data = jsonBuffer.template as<JsonObject>();
+      RPC_Data params;
 
       const char *methodName = data["method"];
 
       if (methodName) {
         Logger::log("received RPC:");
         Logger::log(methodName);
+        params = data["params"];
       } else {
         Logger::log("RPC method is NULL");
      
@@ -347,8 +347,12 @@ private:
         if (deviceName) {
           Logger::log("Got RPC for device");
           Logger::log(deviceName);
-        }
-        return;        
+          methodName = data["data"]["method"];
+          Logger::log(methodName); 
+          params = data;          
+        } else {
+          return; 
+        }       
       }
 
       for (size_t i = 0; i < sizeof(m_rpcCallbacks) / sizeof(*m_rpcCallbacks); ++i) {
@@ -363,7 +367,7 @@ private:
           }
           // Getting non-existing field from JSON should automatically
           // set JSONVariant to null
-          r = m_rpcCallbacks[i].m_cb(data["params"]);
+          r = m_rpcCallbacks[i].m_cb(params);
           break;
         }
       }
