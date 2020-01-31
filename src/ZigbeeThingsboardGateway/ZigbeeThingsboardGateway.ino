@@ -6,8 +6,7 @@
 #include <SPI.h>
 #include <Ethernet.h>
 
-#define MQTT_MAX_PACKET_SIZE 256
-#include <PubSubClient.h>
+#include "PubSubClient.h"
 
 #include "binary.h"
 
@@ -28,7 +27,7 @@ int pwm = 0;
 bool subscribed = false;
 
 EthernetClient ethClient;
-ThingsBoardSized<256> tb(ethClient);
+ThingsBoardSized<MQTT_MAX_PACKET_SIZE> tb(ethClient);
 
 #define XBeeSerial Serial1
 

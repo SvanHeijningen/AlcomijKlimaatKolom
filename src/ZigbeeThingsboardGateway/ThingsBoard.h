@@ -11,7 +11,7 @@
 #include <ArduinoHttpClient.h>
 #endif
 
-#include <PubSubClient.h>
+#include "PubSubClient.h"
 #include <ArduinoJson.h>
 #include "ArduinoJson/Polyfills/type_traits.hpp"
 
@@ -219,7 +219,7 @@ Message: {"device":"Device A"}
   ]
 }
 	*/
-	  char payload[256];
+	  char payload[MQTT_MAX_PACKET_SIZE];
     char s_temp[6];
     char s_hum[6];
     dtostrf(temp, 4, 2, s_temp);
