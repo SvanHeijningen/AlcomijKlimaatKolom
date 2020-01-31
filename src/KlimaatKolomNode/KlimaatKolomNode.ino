@@ -1,4 +1,5 @@
-// Copyright 2015, Matthijs Kooijman <matthijs@stdin.nl>
+// Copyright 2020 Sven and Koen from Alcomij
+// Hat tip to Matthijs Kooijman <matthijs@stdin.nl>
 //
 // Permission is hereby granted, free of charge, to anyone
 // obtaining a copy of this document and accompanying files, to do
@@ -15,6 +16,7 @@
 #include <AltSoftSerial.h>
 #include "Adafruit_SHT31.h"
 #include "binary.h"
+#include <SparkFun_SCD30_Arduino_Library.h>
 
 XBeeWithCallbacks xbee;
 
@@ -26,6 +28,8 @@ AltSoftSerial SoftSerial;
 #define VALVE_SERVO_PIN 6
 
 Adafruit_SHT31 SHT31_a = Adafruit_SHT31();
+Adafruit_SHT31 SHT31_b = Adafruit_SHT31();
+SCD30 SCD30_a;
 
 void setup() {
   // Setup debug serial output
@@ -33,6 +37,13 @@ void setup() {
   DebugSerial.println(F("Starting..."));
 
   SHT31_a.begin(0x44);
+  SHT31_a.begin(0x45);
+  if (SCD30_a.begin() == false)
+  {
+    Serial.println("Air sensor not detected. Please check wiring. Freezing...");
+    while (1)
+      ;
+  }
   // Setup XBee serial communication
   XBeeSerial.begin(9600);
   xbee.begin(XBeeSerial);
@@ -44,18 +55,21 @@ void setup() {
 
 
 void sendPacket() {
-    
-    float a_Temp = SHT31_a.readTemperature();
-    float a_Hum = SHT31_a.readHumidity();
-  
+      
     // Prepare the Zigbee Transmit Request API packet
     ZBTxRequest txRequest;
     txRequest.setAddress64(0x0000000000FFFF);
 
     AllocBuffer<27> packet;
     packet.append<uint8_t>('A');
-    packet.append<float>(a_Temp);
-    packet.append<float>(a_Hum);
+    packet.append<float>(SHT31_a.readTemperature());
+    packet.append<float>(SHT31_a.readHumidity());
+    packet.append<float>(SHT31_b.readTemperature());
+    packet.append<float>(SHT31_b.readHumidity());
+    packet.append<float>(SCD30_a.getTemperature());
+    packet.append<float>(SCD30_a.getHumidity());
+    packet.append<float>(SCD30_a.getCO2());
+    
     txRequest.setPayload(packet.head, packet.len());
     
     DebugSerial.print(F("Sending "));
