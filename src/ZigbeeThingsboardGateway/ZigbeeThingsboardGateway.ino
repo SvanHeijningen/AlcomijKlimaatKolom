@@ -122,9 +122,15 @@ RPC_Response processSetNodeFanPWM(const RPC_Data &data)
   // Prepare the Zigbee Transmit Request API packet
   ZBTxRequest txRequest;
   String device = String(deviceName);
-  long addressMsb = device.substring(2,10).toInt();
-  long addressLsb = device.substring(10).toInt();
-  txRequest.setAddress64(XBeeAddress64(addressMsb, addressLsb));
+  long addressMsb = strtol(device.substring(2,10).c_str(), NULL, 16);
+  long addressLsb = strtol(device.substring(10).c_str(), NULL, 16);
+  XBeeAddress64 destination = XBeeAddress64(addressMsb, addressLsb);
+  
+  Serial.print("Sending to ");
+  printHex(Serial, destination );
+  Serial.println();
+  
+  txRequest.setAddress64(destination);
 
   AllocBuffer<27> packet;
   packet.append<uint8_t>('F');
