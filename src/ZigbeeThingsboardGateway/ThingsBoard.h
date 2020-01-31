@@ -224,9 +224,8 @@ Message: {"device":"Device A"}
     char s_hum[6];
     dtostrf(temp, 4, 2, s_temp);
     sprintf(payload, "{ \"KK%s\": [ { \"ts\": %ld000, \"values\": { \"temperature\": %s} } ] }", device, unixTimeS, s_temp);
-
-        Logger::log(payload);
-    return m_client.publish_P("v1/gateway/telemetry", payload, true);
+    Logger::log(payload);
+    return m_client.publish("v1/gateway/telemetry", payload, false);
   }
   
   //----------------------------------------------------------------------------
