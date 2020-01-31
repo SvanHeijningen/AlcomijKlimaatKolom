@@ -41,7 +41,6 @@ void setup()
   }
   Serial.println("Hello");
 
-
   XBeeSerial.begin(9600);
   xbee.begin(XBeeSerial);
   // Setup callbacks
@@ -51,7 +50,6 @@ void setup()
   // Allow the hardware to sort itself out
   delay(1500);
   NTP.begin (); // Only statement needed to start NTP sync.
-
 }
 
 void loop()
@@ -105,13 +103,19 @@ RPC_Response processSetValue(const RPC_Data &data)
 }
 
 RPC_Response processSetNodeFanPWM(const RPC_Data &data)
+{  
+  return setNodePWM('F', data);
+}
+
+RPC_Response processSetNodeValvePWM(const RPC_Data &data)
 {
+  return setNodePWM('V', data);
+}
+
+RPC_Response setNodePWM(const char messagetype, const RPC_Data &data)
+{  
   Serial.println("Received the set value RPC method");
-/*
-  int pin = data["pin"];
-  int pwm = data["pwm"];
-  if( pin
-  */
+
   const char *deviceName = data["device"];
   Serial.print("for");
   Serial.println(deviceName);
@@ -133,7 +137,7 @@ RPC_Response processSetNodeFanPWM(const RPC_Data &data)
   txRequest.setAddress64(destination);
 
   AllocBuffer<27> packet;
-  packet.append<uint8_t>('F');
+  packet.append<uint8_t>(messagetype);
   packet.append<uint8_t>(newpwm);
   txRequest.setPayload(packet.head, packet.len());
   
@@ -151,12 +155,12 @@ RPC_Response processSetNodeFanPWM(const RPC_Data &data)
   return RPC_Response(NULL, pwm);
 }
 
-
 // RPC handlers
 RPC_Callback callbacks[] = {
   { "setValue",         processSetValue },
   { "getValue",         processGetValue },
   { "setFanPWM",        processSetNodeFanPWM },
+  { "setValvePWM",      processSetNodeValvePWM },
 };
 
 void reconnect() {

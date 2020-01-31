@@ -387,13 +387,17 @@ private:
         Logger::log("too small buffer for JSON data");
         return;
       }
-      serializeJson(resp_obj, payload, sizeof(payload));
-
+      serializeJson(resp_obj, payload, sizeof(payload)); 
       String responseTopic = String(topic);
-      responseTopic.replace("request", "response");
+      if( resp_obj["device"] ) {
+        // gateway RPC; response topic is the same as the request topic
+      } else {       
+        responseTopic = String(topic);
+        responseTopic.replace("request", "response");        
+      }      
       Logger::log("response:");
       Logger::log(payload);
-      m_client.publish(responseTopic.c_str(), payload);
+      m_client.publish(responseTopic.c_str(), payload); 
     }
   }
 
