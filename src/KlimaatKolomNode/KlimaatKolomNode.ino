@@ -1,3 +1,5 @@
+
+
 // Copyright 2020 Sven and Koen from Alcomij
 // Hat tip to Matthijs Kooijman <matthijs@stdin.nl>
 //
@@ -11,12 +13,15 @@
 //
 // This example prints any received ZigBee radio packets to serial.
 
+
 #include <XBee.h>
 #include <Printers.h>
 #include <AltSoftSerial.h>
 #include "Adafruit_SHT31.h"
 #include "binary.h"
 #include <SparkFun_SCD30_Arduino_Library.h>
+#include <SoftPWM.h>
+#include <SoftPWM_timer.h>
 
 XBeeWithCallbacks xbee;
 
@@ -36,6 +41,9 @@ void setup() {
   DebugSerial.begin(115200);
   DebugSerial.println(F("Starting..."));
 
+
+  SoftPWMBegin();
+    
   SHT31_a.begin(0x44);
   SHT31_a.begin(0x45);
   if (SCD30_a.begin() == false)
@@ -107,9 +115,14 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
         analogWrite(FAN_PIN, pwm);
     } else if (type == 'V' ) {
         uint8_t pwm = b.remove<uint8_t>();
-        DebugSerial.print(F("Desired Valve servo PWM:"));
-        DebugSerial.println(pwm);     
-        analogWrite(VALVE_SERVO_PIN, pwm);
+        DebugSerial.print(F("Desired Valve servo position:"));
+        DebugSerial.println(pwm); 
+        // make it servo safe
+        if( pwm < 5 )
+          pwm = 5;
+       if( pwm > 33)
+          pwm = 33;        
+        SoftPWMSet(VALVE_SERVO_PIN, pwm);
     }
 }
 
