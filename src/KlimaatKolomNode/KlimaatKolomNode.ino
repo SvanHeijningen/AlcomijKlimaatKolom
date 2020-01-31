@@ -12,13 +12,15 @@
 
 #include <XBee.h>
 #include <Printers.h>
+#include <AltSoftSerial.h>
 #include "Adafruit_SHT31.h"
 #include "binary.h"
 
 XBeeWithCallbacks xbee;
 
+AltSoftSerial SoftSerial;
 #define DebugSerial Serial
-#define XBeeSerial Serial1
+#define XBeeSerial SoftSerial
 
 Adafruit_SHT31 SHT31_a = Adafruit_SHT31();
 
@@ -81,6 +83,12 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
         DebugSerial.println(his_temp);
         DebugSerial.print(F("His humidity:"));
         DebugSerial.println(his_humidity);
+    }
+     if (type == 'F' ) {
+        uint8_t pwm = b.remove<uint8_t>();
+        DebugSerial.print(F("Desired PWM:"));
+        DebugSerial.println(pwm);     
+        analogWrite(6, pwm);
     }
 }
 
