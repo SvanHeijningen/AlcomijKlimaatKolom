@@ -266,7 +266,7 @@ Message: {"device":"Device A"}
   // Server-side RPC API
 
   // Subscribes multiple RPC callbacks with given size
-  bool RPC_Subscribe(const RPC_Callback *callbacks, size_t callbacks_size) {
+  bool RPC_SubscribeWithGateway(const RPC_Callback *callbacks, size_t callbacks_size) {
     if (callbacks_size > sizeof(m_rpcCallbacks) / sizeof(*m_rpcCallbacks)) {
       return false;
     }
@@ -275,6 +275,10 @@ Message: {"device":"Device A"}
     }
 
     if (!m_client.subscribe("v1/devices/me/rpc/request/+")) {
+      return false;
+    }
+    
+    if (!m_client.subscribe("v1/gateway/rpc")) {
       return false;
     }
 
@@ -287,6 +291,7 @@ Message: {"device":"Device A"}
 
     return true;
 }
+
 
   inline bool RPC_Unsubscribe() {
     ThingsBoardSized::m_subscribedInstance = NULL;
@@ -337,7 +342,13 @@ private:
         Logger::log(methodName);
       } else {
         Logger::log("RPC method is NULL");
-        return;
+     
+        const char *deviceName = data["device"];
+        if (deviceName) {
+          Logger::log("Got RPC for device");
+          Logger::log(deviceName);
+        }
+        return;        
       }
 
       for (size_t i = 0; i < sizeof(m_rpcCallbacks) / sizeof(*m_rpcCallbacks); ++i) {

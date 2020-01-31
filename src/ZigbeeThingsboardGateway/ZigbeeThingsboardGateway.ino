@@ -129,12 +129,13 @@ void reconnect() {
   
       // Perform a subscription. All consequent data processing will happen in
       // callbacks as denoted by callbacks[] array.
-      if (!tb.RPC_Subscribe(callbacks, COUNT_OF(callbacks))) {
-        Serial.println("Failed to subscribe for RPC");
+      if (!tb.RPC_SubscribeWithGateway(callbacks, COUNT_OF(callbacks))) {
+        Serial.println("Failed to subscribe for gateway RPC");
         return;
-      }
-  
+      }  
+      
       Serial.println("Subscribe done");
+      
       subscribed = true;
     }
   }
@@ -174,5 +175,6 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
         long ts = now();     
         result = tb.sendTelemetryForDeviceJson(mac, ts, temperature, humidity);
         Serial.println(result);
+        
     }
 }
