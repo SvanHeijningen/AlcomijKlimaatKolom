@@ -45,7 +45,7 @@ void setup() {
 
   SoftPWMBegin();   
   //Set fan speed to a safe, low value
-  analogWrite(FAN_PIN, 0);
+  analogWrite(FAN_PIN, 5);
     
   SHT31_a.begin(0x44);
   SHT31_b.begin(0x45);
@@ -62,6 +62,7 @@ void setup() {
   xbee.onZBRxResponse(processRxPacket);
   
   attachInterrupt(1/*pin 3*/, onPulse, FALLING);
+  attachInterrupt(1 /*pin 3*/, onPulse, FALLING);
   previousCalculationMs = millis();
 }
 
