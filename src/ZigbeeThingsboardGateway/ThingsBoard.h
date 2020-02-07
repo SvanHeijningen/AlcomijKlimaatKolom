@@ -9,6 +9,7 @@
 #ifndef ESP8266
 #include <ArduinoHttpClient.h>
 #endif
+#define ARDUINOJSON_USE_LONG_LONG true
 #include "PubSubClient.h"
 #include <ArduinoJson.h>
 #include "ArduinoJson/Polyfills/type_traits.hpp"
@@ -196,24 +197,19 @@ Topic: v1/gateway/connect
 Message: {"device":"Device A"}
 	*/
 	  char payload[128];
-    sprintf(payload, "{\"device\": \"KK%s\"}", device);
+    sprintf(payload, "{\"device\": \"%s\"}", device);
     Logger::log(payload);
     return m_client.publish("v1/gateway/connect", payload);
   }
 
   // Sends custom JSON telemetry string to the ThingsBoard.
-  inline bool sendTelemetryForDeviceJson(const char* device, long unixTimeS,
-      float   temp_1,
-      float   humi_1,
-      float   temp_3,
-      float   humi_3 
-) {
+  inline bool sendTelemetryForDeviceJson(const char* device, const Telemetry *data, size_t data_count) {
     /* https://thingsboard.io/docs/reference/gateway-mqtt-api/
 	Topic: v1/gateway/telemetry
 {
   "Device A": [
     {
-      "ts": 1483228800000, //? needed?
+      "ts": 1483228800000,
       "values": {
         "temperature": 42,
         "humidity": 80
@@ -222,27 +218,31 @@ Message: {"device":"Device A"}
   ]
 }
 	*/
-    char payload[MQTT_MAX_PACKET_SIZE];      
-    char s_temp_1[8];
-    char s_humi_1[8];
-    char s_temp_3[8];
-    char s_humi_3[8];
+    char payload[PayloadSize] = {0};   
+    const size_t capacity = JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(1) + MaxFieldsAmt*JSON_OBJECT_SIZE(2);
+    StaticJsonDocument<capacity> doc;
     
-   Serial.println("_0");
-	dtostrf(temp_1, 4, 2, s_temp_1);
-	dtostrf(humi_1, 4, 2, s_humi_1);
-	dtostrf(temp_3, 4, 2, s_temp_3);
-	dtostrf(humi_3, 4, 2, s_humi_3);
-	
-	 Serial.println("_1");
-   sprintf(payload, "{ \"KK%s\": [ { \"ts\": %ld000, \"values\": {\"temp_1\": %s ,\"humi_1\": %s } } ] }",
-	 device, unixTimeS, 
-	 temp_1,
-	 humi_1);
-   Serial.println("_2");
-   Logger::log(payload);   
-   return m_client.publish("v1/gateway/telemetry", payload, false);
-  
+    JsonArray device_root = doc.createNestedArray(device);
+    JsonObject device_telemetry = device_root.createNestedObject();
+    uint64_t timestamp = now() * (uint64_t) 1000;
+    device_telemetry["ts"] = timestamp;
+    
+    JsonObject device_telemetry_values = device_telemetry.createNestedObject("values");
+    
+    for (size_t i = 0; i < data_count; ++i) {
+      if (data[i].serializeKeyval((JsonVariant&)device_telemetry_values) == false) {
+        Logger::log("unable to serialize data");
+        return false;
+      }
+    }
+    
+    if (measureJson(doc) > PayloadSize-1) {
+      Logger::log("too small buffer for JSON data");
+      return false;
+    }
+    serializeJson(doc, Serial);   
+    serializeJson(doc, payload, PayloadSize);   
+    return m_client.publish("v1/gateway/telemetry", payload, false);
   }
   
   //----------------------------------------------------------------------------

@@ -84,11 +84,7 @@ RPC_Response processGetValue(const RPC_Data &data)
 RPC_Response processSetValue(const RPC_Data &data)
 {
   Serial.println("Received the set value RPC method");
-/*
-  int pin = data["pin"];
-  int pwm = data["pwm"];
-  if( pin
-  */
+
   int newpwm = data;
   Serial.print("new pwm:");
   Serial.println(newpwm);
@@ -213,8 +209,8 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
         float humi_3 = b.remove<float>();
         float temp_2 = b.remove<float>();
         float humi_2 = b.remove<float>();
-        float co2_2 = b.remove<float>();
-        float rpm = b.remove<float>();
+        float co2_2  = b.remove<float>();
+        float rpm    = b.remove<float>();
         Serial.print(F("=> temp_1:")); Serial.println(temp_1); 
         Serial.print(F("=> temp_2:")); Serial.println(temp_2); 
         Serial.print(F("=> temp_3:")); Serial.println(temp_3); 
@@ -224,21 +220,26 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
           Serial.print(F("Not connected"));
           return;
         }
-        char mac[16];
+        char devicename[19];
         byte* addr = (byte*)&remoteAddress;
-        sprintf(mac, "%.2X%.2X%.2X%.2X%.2X%.2X%.2X%.2X", addr[3], addr[2], addr[1], addr[0], addr[7], addr[6], addr[5], addr[4]);
-        
-        const int data_items = 4;   
+        sprintf(devicename, "KK%.2X%.2X%.2X%.2X%.2X%.2X%.2X%.2X", addr[3], addr[2], addr[1], addr[0], addr[7], addr[6], addr[5], addr[4]);
+
         bool result;
-        result = tb.connectDevice(mac);
+        result = tb.connectDevice(devicename);
         Serial.println(result);
-        long ts = now();     
-        result = tb.sendTelemetryForDeviceJson(mac, ts,        
-         temp_1,
-         humi_1,
-         temp_3,
-         humi_3
-        );
+        const int data_items = 8;
+        Telemetry data[data_items] = {
+          { "temp_1", temp_1}, 
+          { "humi_1", humi_1}, 
+          { "temp_3", temp_3}, 
+          { "humi_3", humi_3},
+		  
+          { "temp_2", temp_2}, 
+          { "humi_2", humi_2}, 
+          { "co2_2", co2_2 }, 
+          { "rpm", rpm   }
+        };
+        result = tb.sendTelemetryForDeviceJson(devicename, data, data_items);
         Serial.println(result);
         
     }
