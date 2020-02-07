@@ -35,22 +35,27 @@ void setup() {
       DebugSerial.print( "  stuck");
     }
     DebugSerial.println();    
-    if( !stuck && (first == -1))
-      first = pwm;
-    if( !stuck)
+    if( !stuck ) {
+      if( first == -1)
+        first = pwm;
       last = pwm;
+    } else {
+      if( first > 0)
+        break; // we found the end, which is in last
+    }    
   }
 
   // first and last are now set
-
   
-    DebugSerial.print("first:");
-    DebugSerial.println(first);
-    DebugSerial.print("last:");
-    DebugSerial.println(last);
-    int middle = (first + last + 1) / 2;
-    DebugSerial.println(middle);
-    SoftPWMSet(VALVE_SERVO_PIN, middle);
+  DebugSerial.print("first:");
+  DebugSerial.println(first);
+  DebugSerial.print("last:");
+  DebugSerial.println(last);
+  int middle = (first + last + 1) / 2;
+  DebugSerial.println(middle);
+  SoftPWMSet(VALVE_SERVO_PIN, middle);
+  if( last - first < 10 )
+    DebugSerial.println("ERROR Valve is probably stuck during initialization");
 }
 
 void loop() 
