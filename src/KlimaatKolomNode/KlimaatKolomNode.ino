@@ -13,6 +13,10 @@
 //
 // This example prints any received ZigBee radio packets to serial.
 
+#define DebugSerial Serial
+#define XBeeSerial SoftSerial
+#define FAN_PIN 5
+#define VALVE_SERVO_PIN 6
 
 #include <XBee.h>
 #include <Printers.h>
@@ -22,15 +26,13 @@
 #include <SparkFun_SCD30_Arduino_Library.h>
 #include <SoftPWM.h>
 #include <SoftPWM_timer.h>
+#include "Servo.h"
 
 XBeeWithCallbacks xbee;
 
 AltSoftSerial SoftSerial;
-#define DebugSerial Serial
-#define XBeeSerial SoftSerial
 
-#define FAN_PIN 5
-#define VALVE_SERVO_PIN 6
+
 
 Adafruit_SHT31 SHT31_a = Adafruit_SHT31();
 Adafruit_SHT31 SHT31_b = Adafruit_SHT31();
@@ -43,7 +45,6 @@ void setup() {
   DebugSerial.begin(115200);
   DebugSerial.println(F("Starting..."));
 
-  SoftPWMBegin();   
   //Set fan speed to a safe, low value
   analogWrite(FAN_PIN, 5);
     
@@ -64,6 +65,8 @@ void setup() {
   attachInterrupt(1/*pin 3*/, onPulse, FALLING);
   attachInterrupt(1 /*pin 3*/, onPulse, FALLING);
   previousCalculationMs = millis();
+ 
+  setupServo();  
 }
 
 
@@ -148,15 +151,11 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
         DebugSerial.println(pwm);     
         analogWrite(FAN_PIN, pwm);
     } else if (type == 'V' ) {
-        uint8_t pwm = b.remove<uint8_t>();
+        uint8_t percentage = b.remove<uint8_t>();
         DebugSerial.print(F("Desired Valve servo position:"));
-        DebugSerial.println(pwm); 
-        // make it servo safe
-        if( pwm < 5 )
-          pwm = 5;
-       if( pwm > 33)
-          pwm = 33;        
-        SoftPWMSet(VALVE_SERVO_PIN, pwm);
+        DebugSerial.println(percentage); 
+        setServoPercent(percentage);
+        
     }
 }
 
