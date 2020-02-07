@@ -9,6 +9,7 @@
 #ifndef ESP8266
 #include <ArduinoHttpClient.h>
 #endif
+#define ARDUINOJSON_USE_LONG_LONG true
 #include "PubSubClient.h"
 #include <ArduinoJson.h>
 #include "ArduinoJson/Polyfills/type_traits.hpp"
@@ -223,7 +224,7 @@ Message: {"device":"Device A"}
     
     JsonArray device_root = doc.createNestedArray(device);
     JsonObject device_telemetry = device_root.createNestedObject();
-    uint64_t timestamp = now() * 1000;
+    uint64_t timestamp = now() * (uint64_t) 1000;
     device_telemetry["ts"] = timestamp;
     
     JsonObject device_telemetry_values = device_telemetry.createNestedObject("values");
