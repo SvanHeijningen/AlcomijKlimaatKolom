@@ -223,7 +223,7 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
         char devicename[19];
         byte* addr = (byte*)&remoteAddress;
         sprintf(devicename, "KK%.2X%.2X%.2X%.2X%.2X%.2X%.2X%.2X", addr[3], addr[2], addr[1], addr[0], addr[7], addr[6], addr[5], addr[4]);
-        
+
         bool result;
         result = tb.connectDevice(devicename);
         Serial.println(result);
