@@ -25,8 +25,10 @@ bool isServoStuck(){
 void setServoPercent(int percent) 
 {
     int pwm = map(percent, 0, 100, first, last);
+    DebugSerial.print("Setting servo to");
+    DebugSerial.println(pwm);
     SoftPWMSet(VALVE_SERVO_PIN, pwm);
-    delay(2000);
+    delay(1000);
     if( isServoStuck() )
        DebugSerial.println("ERROR Servo stuck!");
     SoftPWMSet(VALVE_SERVO_PIN, 0);    
@@ -34,18 +36,12 @@ void setServoPercent(int percent)
 
 void setupServoWithDefaults()
 {
-   first = 5;
-   last = 32;
+   first = 1;
+   last = 255;   
 }
 
 void setupServoWithCurrentMeasuring() 
-{  
-  // Setup debug serial output
-  DebugSerial.begin(115200);
-  DebugSerial.println(F("Starting..."));
-
-  SoftPWMBegin();   
-      
+{   
   DebugSerial.println(F("PWM\tAnalogRead"));
 
   SoftPWMSet(VALVE_SERVO_PIN, 0);
@@ -87,11 +83,13 @@ void setupServoWithCurrentMeasuring()
   DebugSerial.println(last);
   if( last - first < 10 )
     DebugSerial.println("ERROR Valve is probably stuck during initialization");
-  setServoPercent(50);
 }
 
 
 void setupServo() 
 {
+  
+  SoftPWMBegin();         
   setupServoWithDefaults();
+  setServoPercent(50);
 }
