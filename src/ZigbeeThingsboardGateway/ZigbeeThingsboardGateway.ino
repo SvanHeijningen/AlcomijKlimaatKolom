@@ -236,8 +236,8 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
 		  
           { "temp_2", temp_2}, 
           { "humi_2", humi_2}, 
-          { "co2_2 ", co2_2 }, 
-          { "rpm   ", rpm   }
+          { "co2_2", co2_2 }, 
+          { "rpm", rpm   }
         };
         result = tb.sendTelemetryForDeviceJson(devicename, data, data_items);
         Serial.println(result);
