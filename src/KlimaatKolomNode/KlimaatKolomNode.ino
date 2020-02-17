@@ -44,7 +44,7 @@ long previousCalculationMs;
 
 uint8_t fanPwm = 1;
 
-uint8_t workMode = MODE_MEASURE;
+uint8_t workMode = MODE_MANUAL;
 
 void setup() {
   // Setup debug serial output
