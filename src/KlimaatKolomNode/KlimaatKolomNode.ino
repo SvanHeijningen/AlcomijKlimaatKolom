@@ -230,17 +230,28 @@ void loop_dehumidify() {
   last_dehumidify_time = millis();
   
   float   hum_1 = get_absolute_humidity(SHT31_a.readTemperature(), SHT31_a.readHumidity()); //up
-  float   hum_2 = get_absolute_humidity(SHT31_b.readTemperature(), SHT31_b.readHumidity()); //down
-  float   hum_3 = get_absolute_humidity(SCD30_a.getTemperature(), SCD30_a.getHumidity()); //middle
+  DebugSerial.print ("humidity 1:");
+  DebugSerial.println (hum_1);
+  float   hum_2 = get_absolute_humidity(SCD30_a.getTemperature(), SCD30_a.getHumidity()); //middle
+  DebugSerial.print ("humidity 2:");
+  DebugSerial.println (hum_2);
+  float   hum_3 = get_absolute_humidity(SHT31_b.readTemperature(), SHT31_b.readHumidity()); //down
+  DebugSerial.print ("humidity 3:");
+  DebugSerial.println (hum_3);
 
   if( hum_2 < hum_1 && hum_2 < hum_3 ) // middle is driest, so switch off fan
-      fanPwm = 1;
-  else {
+  {    
+    DebugSerial.println ("Action: off");    
+    fanPwm = 1;    
+    setServoPercent(50);     
+  } else {
     fanPwm = 50;  
     if( hum_1 < hum_3)
     {        
+      DebugSerial.println ("Action: air from up");    
       setServoPercent(0);     
     } else {
+      DebugSerial.println ("Action: air from down");    
       setServoPercent(100);
     }
   }    
