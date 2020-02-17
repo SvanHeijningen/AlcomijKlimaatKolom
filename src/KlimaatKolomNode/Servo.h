@@ -12,12 +12,19 @@ uint8_t valvePercentage = 0;
 long measureVoltage(){
     long voltage = 0;
     unsigned long start = millis();
+    int measurements = 0;
     while( millis() - start < 16) {
       voltage += analogRead(A3);
+      measurements++;
     }
-    DebugSerial.print("Voltage: ");
-    DebugSerial.println(voltage);
-    return voltage;
+    DebugSerial.print("no of measurements: ");
+    DebugSerial.print(measurements);
+    DebugSerial.print(" Voltage: ");
+    DebugSerial.print(voltage);
+    int average = voltage / measurements;
+        DebugSerial.print(" Avg: ");
+    DebugSerial.println(average);
+    return average;
 }
 
 bool isServoStuck(){
@@ -100,5 +107,5 @@ void setupServo()
   
   SoftPWMBegin();         
   setupServoWithCurrentMeasuring();
-  setServoPercent(50);
+  setServoPercent(100); // avoid cold flow
 }
