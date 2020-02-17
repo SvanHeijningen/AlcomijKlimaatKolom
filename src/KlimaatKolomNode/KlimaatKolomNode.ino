@@ -28,11 +28,12 @@
 #include <SoftPWM_timer.h>
 #include "Servo.h"
 
+#define MODE_MANUAL = 0;
+#define MODE_DEHUMIDIFY = 1;
+
 XBeeWithCallbacks xbee;
 
 AltSoftSerial SoftSerial;
-
-
 
 Adafruit_SHT31 SHT31_a = Adafruit_SHT31();
 Adafruit_SHT31 SHT31_b = Adafruit_SHT31();
@@ -42,6 +43,8 @@ long previousCalculationMs;
 
 uint8_t fanPwm = 1;
 
+uint8_t workMode = MODE_MANUAL;
+
 void setup() {
   // Setup debug serial output
   DebugSerial.begin(115200);
@@ -50,8 +53,8 @@ void setup() {
   //Set fan speed to a safe, low value
   analogWrite(FAN_PIN, fanPwm);
     
-  SHT31_a.begin(0x44);
-  SHT31_b.begin(0x45);
+  SHT31_a.begin(0x45);
+  SHT31_b.begin(0x44);
   if (SCD30_a.begin() == false)
   {
     Serial.println("Air sensor not detected. Please check wiring.");
@@ -111,16 +114,21 @@ void sendPacket() {
     txRequest.setAddress64(0x0000000000FFFF);
 
     AllocBuffer<64> packet;
-    packet.append<uint8_t>('A');
-    packet.append<float>(temp_1);
-    packet.append<float>(humi_1);
-    packet.append<float>(temp_3);
-    packet.append<float>(humi_3);
-    packet.append<float>(temp_2);
-    packet.append<float>(humi_2);
-    packet.append<float>(co2_2);
-    packet.append<float>(rpm);
-    if( !packet.append<byte>(servoQuality)) Serial.print(F("ERROR packetbuffer too small"));
+    if( !( 
+          packet.append<uint8_t>('A') &&
+          packet.append<float>(temp_1) &&
+          packet.append<float>(humi_1) &&
+          packet.append<float>(temp_3) &&
+          packet.append<float>(humi_3) &&
+          packet.append<float>(temp_2) &&
+          packet.append<float>(humi_2) &&
+          packet.append<float>(co2_2) &&
+          packet.append<float>(rpm) &&     
+          packet.append<byte>(servoQuality) &&
+          packet.append<byte>(valvePercentage) &&
+          packet.append<uint8_t>(workMode)
+          ))
+      Serial.print(F("ERROR packetbuffer too small"));
     
     txRequest.setPayload(packet.head, packet.len());
     
@@ -172,13 +180,21 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
     } else if (type == 'F' ) {
         fanPwm = b.remove<uint8_t>();
         DebugSerial.print(F("Desired Fan PWM:"));
-        DebugSerial.println(fanPwm);     
-        analogWrite(FAN_PIN, fanPwm);
+        DebugSerial.println(fanPwm);    
     } else if (type == 'V' ) {
         uint8_t percent = b.remove<uint8_t>();
         DebugSerial.print(F("Desired Valve servo position:"));
         DebugSerial.println(percent); 
         setServoPercent(percent);        
+    } else if (type == 'W' ) {
+        uint8_t work = b.remove<uint8_t>();
+        DebugSerial.print(F("Desired work mode:"));
+        DebugSerial.println(work); 
+        if( work == MODE_MANUAL ||
+            work == MODE_DEHUMIDIFY )
+        {
+           workMode = work; 
+        }        
     } else if (type == 'f' ) { // fan pwm setting request
         long messageId = b.remove<long>();
         sendResponse(type, messageId, fanPwm);        
@@ -199,4 +215,32 @@ void loop() {
     DebugSerial.println("Still here");
     sendPacket();
   }
+  if( workMode == MODE_DEHUMIDIFY)
+  {
+    loop_dehumidify();
+  }
+   
+  analogWrite(FAN_PIN, fanPwm);
+}
+
+void loop_dehumidify() {
+  float   hum_1 = get_absolute_humidity(SHT31_a.readTemperature(), SHT31_a.readHumidity()); //up
+  float   hum_2 = get_absolute_humidity(SHT31_b.readTemperature(), SHT31_b.readHumidity()); //down
+  float   hum_3 = get_absolute_humidity(SCD30_a.getTemperature(), SCD30_a.getHumidity()); //middle
+
+  if( hum_2 < hum_1 && hum_2 < hum_3 )
+      fanPwm = 1;
+  else {
+    fanPwm = 255;  
+    if( hum_1 < hum_3)
+    {        
+      setServoPercent(0);     
+    } else {
+      setServoPercent(100);
+    }
+  }    
+}
+
+float get_absolute_humidity(float temp, float hum) {
+  return 0.0;
 }
