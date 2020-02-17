@@ -28,8 +28,8 @@
 #include <SoftPWM_timer.h>
 #include "Servo.h"
 
-#define MODE_MANUAL = 0;
-#define MODE_DEHUMIDIFY = 1;
+#define MODE_MANUAL 0
+#define MODE_DEHUMIDIFY 1
 
 XBeeWithCallbacks xbee;
 
@@ -43,7 +43,7 @@ long previousCalculationMs;
 
 uint8_t fanPwm = 1;
 
-uint8_t workMode = MODE_MANUAL;
+uint8_t workMode = MODE_DEHUMIDIFY;
 
 void setup() {
   // Setup debug serial output
@@ -223,15 +223,20 @@ void loop() {
   analogWrite(FAN_PIN, fanPwm);
 }
 
+long last_dehumidify_time = 0;
+
 void loop_dehumidify() {
+  if (millis() - last_dehumidify_time < 10000) return;
+  last_dehumidify_time = millis();
+  
   float   hum_1 = get_absolute_humidity(SHT31_a.readTemperature(), SHT31_a.readHumidity()); //up
   float   hum_2 = get_absolute_humidity(SHT31_b.readTemperature(), SHT31_b.readHumidity()); //down
   float   hum_3 = get_absolute_humidity(SCD30_a.getTemperature(), SCD30_a.getHumidity()); //middle
 
-  if( hum_2 < hum_1 && hum_2 < hum_3 )
+  if( hum_2 < hum_1 && hum_2 < hum_3 ) // middle is driest, so switch off fan
       fanPwm = 1;
   else {
-    fanPwm = 255;  
+    fanPwm = 50;  
     if( hum_1 < hum_3)
     {        
       setServoPercent(0);     
@@ -241,6 +246,8 @@ void loop_dehumidify() {
   }    
 }
 
-float get_absolute_humidity(float temp, float hum) {
-  return 0.0;
+#define E 2.718281
+
+float get_absolute_humidity(float temperature, float humidity) {
+  return (6.112* pow(E, (17.67* temperature) / (temperature + 243.5)) * humidity * 2.1674) /(273.15 + temperature);
 }
