@@ -201,6 +201,9 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
     } else if (type == 'v' ) { // valve setting request
         long messageId = b.remove<long>();
         sendResponse(type, messageId, valvePercentage);        
+    } else if (type == 'w' ) { // workmode setting request
+        long messageId = b.remove<long>();
+        sendResponse(type, messageId, workMode);        
     }
 }
 

@@ -201,11 +201,21 @@ RPC_Response processGetNodeFanPWM(const RPC_Data &data)
   return RPC_Response(NULL, 0);
 }
 
-
 RPC_Response processGetNodeValvePWM(const RPC_Data &data) 
 {   
   requestGetNodeValue('v', data);
   return RPC_Response(NULL, 0);
+}
+
+RPC_Response processGetNodeWorkMode(const RPC_Data &data) 
+{   
+  requestGetNodeValue('w', data);
+  return RPC_Response(NULL, 0);
+}
+
+RPC_Response processSetNodeWorkMode(const RPC_Data &data)
+{
+  return setNodePWM('W', data);
 }
 
 // RPC handlers
@@ -215,7 +225,9 @@ RPC_Callback callbacks[] = {
   { "getFanPWM",        processGetNodeFanPWM },
   { "setFanPWM",        processSetNodeFanPWM },
   { "getValvePWM",      processGetNodeValvePWM },
-  { "setValvePWM",      processSetNodeValvePWM }
+  { "setValvePWM",      processSetNodeValvePWM },
+  { "getWorkMode",      processGetNodeWorkMode },
+  { "setWorkMode",      processSetNodeWorkMode }
 };
 
 void reconnect() {
@@ -275,8 +287,9 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
         float humi_2 = b.remove<float>();
         float co2_2  = b.remove<float>();
         float rpm    = b.remove<float>();
-        
         byte servoQ  = b.remove<byte>();
+        byte workMode = b.remove<byte>();
+        
         Serial.print(F("=> temp_1:")); Serial.println(temp_1); 
         Serial.print(F("=> temp_2:")); Serial.println(temp_2); 
         Serial.print(F("=> temp_3:")); Serial.println(temp_3); 
@@ -290,7 +303,7 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
         bool result;
         result = tb.connectDevice(devicename);
         Serial.println(result);
-        const int data_items = 9;
+        const int data_items = 10;
         Telemetry data[data_items] = {
           { "temp_1", temp_1}, 
           { "humi_1", humi_1}, 
@@ -301,11 +314,14 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
           { "humi_2", humi_2}, 
           { "co2_2", co2_2 }, 
           { "rpm", rpm   },
-          { "servoQ", servoQ }          
+          { "servoQ", servoQ },   
+          { "workMode", workMode }          
         };
         result = tb.sendTelemetryForDeviceJson(devicename, data, data_items);
         Serial.println(result);
-    } else if (type == 'v' || type == 'f') {
+    } else if (type == 'v' || 
+               type == 'f' || 
+               type == 'w') {
       long messageId = b.remove<long>();
       uint8_t value = b.remove<uint8_t>();    
       tb.sendGatewayRpcResponse(devicename, messageId, RPC_Response(NULL, value));
