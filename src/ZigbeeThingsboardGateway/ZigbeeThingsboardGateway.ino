@@ -151,12 +151,26 @@ RPC_Response setNodePWM(const char messagetype, const RPC_Data &data)
   return RPC_Response(NULL, pwm);
 }
 
+
+RPC_Response processGetNodeFanPWM(const char messagetype, const RPC_Data &data) 
+{  
+  return RPC_Response(NULL, 12);
+}
+
+
+RPC_Response processGetNodeValvePWM(const char messagetype, const RPC_Data &data) 
+{  
+  return RPC_Response(NULL, 12);
+}
+
 // RPC handlers
 RPC_Callback callbacks[] = {
-  { "setValue",         processSetValue },
   { "getValue",         processGetValue },
+  { "setValue",         processSetValue }, 
+  { "getFanPWM",        processGetNodeFanPWM },
   { "setFanPWM",        processSetNodeFanPWM },
-  { "setValvePWM",      processSetNodeValvePWM },
+  { "getValvePWM",      processGetNodeValvePWM },
+  { "setValvePWM",      processSetNodeValvePWM }
 };
 
 void reconnect() {

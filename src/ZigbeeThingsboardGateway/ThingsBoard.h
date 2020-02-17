@@ -358,9 +358,7 @@ private:
         Logger::log("received RPC:");
         Logger::log(methodName);
         params = data["params"];
-      } else {
-        Logger::log("RPC method is NULL");
-     
+      } else {     
         const char *deviceName = data["device"];
         if (deviceName) {
           Logger::log("Got RPC for device");
@@ -368,7 +366,8 @@ private:
           methodName = data["data"]["method"];
           Logger::log(methodName); 
           params = data;          
-        } else {
+        } else {          
+          Logger::log("RPC method is NULL");
           return; 
         }       
       }
@@ -389,25 +388,28 @@ private:
           break;
         }
       }
-    }
-    {
       // Fill in response
       char payload[PayloadSize] = {0};
-      StaticJsonDocument<JSON_OBJECT_SIZE(1)> respBuffer;
-      JsonVariant resp_obj = respBuffer.template to<JsonVariant>();
-
-      if (r.serializeKeyval(resp_obj) == false) {
+      StaticJsonDocument<JSON_OBJECT_SIZE(6)> doc;
+      
+      doc["device"] =  data["device"];
+      doc["id"] = data["data"]["id"];
+      
+      JsonVariant nestedData = doc.createNestedObject("data");
+     // JsonVariant resp_obj = nestedData.template to<JsonVariant>();
+      if (r.serializeKeyval(nestedData) == false) {
         Logger::log("unable to serialize data");
         return;
       }
 
-      if (measureJson(respBuffer) > PayloadSize - 1) {
+      if (measureJson(doc) > PayloadSize - 1) {
         Logger::log("too small buffer for JSON data");
         return;
       }
-      serializeJson(resp_obj, payload, sizeof(payload)); 
+      
+      serializeJson(doc, payload, sizeof(payload)); 
       String responseTopic = String(topic);
-      if( resp_obj["device"] ) {
+      if( doc["device"] ) {
         // gateway RPC; response topic is the same as the request topic
       } else {       
         responseTopic = String(topic);
