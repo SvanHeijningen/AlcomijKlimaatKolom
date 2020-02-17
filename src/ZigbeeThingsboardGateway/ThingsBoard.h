@@ -314,6 +314,33 @@ Message: {"device":"Device A"}
     return m_client.unsubscribe("v1/devices/me/rpc/request/+");
   }
 
+  void sendGatewayRpcResponse( char* device, long id, RPC_Response response ) {
+      // Fill in response
+      char payload[PayloadSize] = {0};
+      StaticJsonDocument<JSON_OBJECT_SIZE(6)> doc;
+  
+      doc["device"] = device;
+      doc["id"] = id;
+            
+      JsonVariant nestedData = doc.createNestedObject("data");
+      
+      if (response.serializeKeyval(nestedData) == false) {
+        Logger::log("unable to serialize data");
+        return;
+      }
+
+      if (measureJson(doc) > PayloadSize - 1) {
+        Logger::log("too small buffer for JSON data");
+        return;
+      }
+      
+      serializeJson(doc, payload, sizeof(payload)); 
+      char* responseTopic = "v1/gateway/rpc";    
+      Logger::log("response:");
+      Logger::log(payload);
+      m_client.publish(responseTopic, payload); 
+  }
+
 private:
   // Sends single key-value in a generic way.
   template<typename T>
@@ -414,33 +441,6 @@ private:
       Logger::log(payload);
       m_client.publish(responseTopic.c_str(), payload); 
     }
-  }
-
-  void sendGatewayRpcResponse( char* device, long id, RPC_Response response ) {
-      // Fill in response
-      char payload[PayloadSize] = {0};
-      StaticJsonDocument<JSON_OBJECT_SIZE(6)> doc;
-  
-      doc["device"] = device;
-      doc["id"] = id;
-            
-      JsonVariant nestedData = doc.createNestedObject("data");
-      
-      if (response.serializeKeyval(nestedData) == false) {
-        Logger::log("unable to serialize data");
-        return;
-      }
-
-      if (measureJson(doc) > PayloadSize - 1) {
-        Logger::log("too small buffer for JSON data");
-        return;
-      }
-      
-      serializeJson(doc, payload, sizeof(payload)); 
-      char* responseTopic = "v1/gateway/rpc";    
-      Logger::log("response:");
-      Logger::log(payload);
-      m_client.publish(responseTopic, payload); 
   }
 
   // Sends array of attributes or telemetry to ThingsBoard

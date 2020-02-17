@@ -151,16 +151,61 @@ RPC_Response setNodePWM(const char messagetype, const RPC_Data &data)
   return RPC_Response(NULL, pwm);
 }
 
-
-RPC_Response processGetNodeFanPWM(const char messagetype, const RPC_Data &data) 
+RPC_Response requestGetNodeValue(const char messagetype, const RPC_Data &data)
 {  
-  return RPC_Response(NULL, 12);
+  Serial.println("Received the set value RPC method");
+
+  const char *deviceName = data["device"];
+  Serial.print("for");
+  Serial.println(deviceName);
+  long messageId = data["data"]["id"];
+  Serial.print("requestId:");
+  Serial.println(messageId);
+
+  // Prepare the Zigbee Transmit Request API packet
+  ZBTxRequest txRequest;
+  String device = String(deviceName);
+  long addressMsb = strtol(device.substring(2,10).c_str(), NULL, 16);
+  long addressLsb = strtol(device.substring(10).c_str(), NULL, 16);
+  XBeeAddress64 destination = XBeeAddress64(addressMsb, addressLsb);
+  
+  Serial.print("Sending to ");
+  printHex(Serial, destination );
+  Serial.println();
+  
+  txRequest.setAddress64(destination);
+
+  AllocBuffer<27> packet;
+  packet.append<uint8_t>(messagetype);
+  if(! packet.append<long>(messageId))
+    Serial.print(F("send buffer too small"));
+  txRequest.setPayload(packet.head, packet.len());
+  
+  Serial.print(F("Sending "));
+  Serial.println(packet.len());
+  // And send it
+  uint8_t status = xbee.sendAndWait(txRequest, 5000);
+  if (status == 0) {
+    Serial.println(F("Succesfully sent packet"));
+  } else {
+    Serial.print(F("Failed to send packet. Status: 0x"));
+    Serial.println(status, HEX);
+  }
+    
+  return RPC_Response(NULL, pwm);
+}
+
+RPC_Response processGetNodeFanPWM(const RPC_Data &data) 
+{   
+  requestGetNodeValue('f', data);
+  return RPC_Response(NULL, 0);
 }
 
 
-RPC_Response processGetNodeValvePWM(const char messagetype, const RPC_Data &data) 
-{  
-  return RPC_Response(NULL, 12);
+RPC_Response processGetNodeValvePWM(const RPC_Data &data) 
+{   
+  requestGetNodeValue('v', data);
+  return RPC_Response(NULL, 0);
 }
 
 // RPC handlers
@@ -215,6 +260,11 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
     Serial.print(rx.getDataLength());
     Serial.println();
     Buffer b = Buffer(rx.getData(), rx.getDataLength());
+    
+    char devicename[19];
+    byte* addr = (byte*)&remoteAddress;
+    sprintf(devicename, "KK%.2X%.2X%.2X%.2X%.2X%.2X%.2X%.2X", addr[3], addr[2], addr[1], addr[0], addr[7], addr[6], addr[5], addr[4]);
+
     uint8_t type = b.remove<uint8_t>();
     if (type == 'A' ) {
         float temp_1 = b.remove<float>();
@@ -236,10 +286,7 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
           Serial.print(F("Not connected"));
           return;
         }
-        char devicename[19];
-        byte* addr = (byte*)&remoteAddress;
-        sprintf(devicename, "KK%.2X%.2X%.2X%.2X%.2X%.2X%.2X%.2X", addr[3], addr[2], addr[1], addr[0], addr[7], addr[6], addr[5], addr[4]);
-
+        
         bool result;
         result = tb.connectDevice(devicename);
         Serial.println(result);
@@ -258,6 +305,9 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
         };
         result = tb.sendTelemetryForDeviceJson(devicename, data, data_items);
         Serial.println(result);
-        
+    } else if (type == 'v' || type == 'f') {
+      long messageId = b.remove<long>();
+      uint8_t value = b.remove<uint8_t>();    
+      tb.sendGatewayRpcResponse(devicename, messageId, RPC_Response(NULL, value));
     }
 }
