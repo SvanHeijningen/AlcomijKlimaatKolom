@@ -421,6 +421,33 @@ private:
     }
   }
 
+  void sendGatewayRpcResponse( char* device, long id, RPC_Response response ) {
+      // Fill in response
+      char payload[PayloadSize] = {0};
+      StaticJsonDocument<JSON_OBJECT_SIZE(6)> doc;
+  
+      doc["device"] = device;
+      doc["id"] = id;
+            
+      JsonVariant nestedData = doc.createNestedObject("data");
+      
+      if (response.serializeKeyval(nestedData) == false) {
+        Logger::log("unable to serialize data");
+        return;
+      }
+
+      if (measureJson(doc) > PayloadSize - 1) {
+        Logger::log("too small buffer for JSON data");
+        return;
+      }
+      
+      serializeJson(doc, payload, sizeof(payload)); 
+      char* responseTopic = "v1/gateway/rpc";    
+      Logger::log("response:");
+      Logger::log(payload);
+      m_client.publish(responseTopic, payload); 
+  }
+
   // Sends array of attributes or telemetry to ThingsBoard
   bool sendDataArray(const Telemetry *data, size_t data_count, bool telemetry = true) {
     if (MaxFieldsAmt < data_count) {
