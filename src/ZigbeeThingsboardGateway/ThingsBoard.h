@@ -388,33 +388,28 @@ private:
           break;
         }
       }
+
+      if( data["device"]) // it was not for me, we expect a later response via sendGatewayRpcResponse
+        return;
+        
       // Fill in response
       char payload[PayloadSize] = {0};
-      StaticJsonDocument<JSON_OBJECT_SIZE(6)> doc;
-      
-      doc["device"] =  data["device"];
-      doc["id"] = data["data"]["id"];
-      
-      JsonVariant nestedData = doc.createNestedObject("data");
-     // JsonVariant resp_obj = nestedData.template to<JsonVariant>();
-      if (r.serializeKeyval(nestedData) == false) {
+      StaticJsonDocument<JSON_OBJECT_SIZE(6)> responseDoc;
+      JsonVariant resp_obj = responseDoc.template to<JsonVariant>();
+      if (r.serializeKeyval(resp_obj) == false) {
         Logger::log("unable to serialize data");
         return;
       }
 
-      if (measureJson(doc) > PayloadSize - 1) {
+      if (measureJson(responseDoc) > PayloadSize - 1) {
         Logger::log("too small buffer for JSON data");
         return;
       }
       
-      serializeJson(doc, payload, sizeof(payload)); 
+      serializeJson(responseDoc, payload, sizeof(payload)); 
       String responseTopic = String(topic);
-      if( doc["device"] ) {
-        // gateway RPC; response topic is the same as the request topic
-      } else {       
-        responseTopic = String(topic);
-        responseTopic.replace("request", "response");        
-      }      
+      responseTopic = String(topic);
+      responseTopic.replace("request", "response");        
       Logger::log("response:");
       Logger::log(payload);
       m_client.publish(responseTopic.c_str(), payload); 
