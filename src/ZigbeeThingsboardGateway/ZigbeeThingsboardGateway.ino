@@ -288,6 +288,7 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
         float co2_2  = b.remove<float>();
         float rpm    = b.remove<float>();
         byte servoQ  = b.remove<byte>();
+        byte servoPercent = b.remove<byte>();
         byte workMode = b.remove<byte>();
         
         Serial.print(F("=> temp_1:")); Serial.println(temp_1); 
@@ -303,7 +304,7 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
         bool result;
         result = tb.connectDevice(devicename);
         Serial.println(result);
-        const int data_items = 10;
+        const int data_items = 11;
         Telemetry data[data_items] = {
           { "temp_1", temp_1}, 
           { "humi_1", humi_1}, 
@@ -314,7 +315,8 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
           { "humi_2", humi_2}, 
           { "co2_2", co2_2 }, 
           { "rpm", rpm   },
-          { "servoQ", servoQ },   
+          { "servoQ", servoQ },  
+          { "servoPercent", servoPercent },   
           { "workMode", workMode }          
         };
         result = tb.sendTelemetryForDeviceJson(devicename, data, data_items);

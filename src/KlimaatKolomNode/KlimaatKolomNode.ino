@@ -30,6 +30,7 @@
 
 #define MODE_MANUAL 0
 #define MODE_DEHUMIDIFY 1
+#define MODE_MEASURE 2
 
 XBeeWithCallbacks xbee;
 
@@ -43,7 +44,7 @@ long previousCalculationMs;
 
 uint8_t fanPwm = 1;
 
-uint8_t workMode = MODE_DEHUMIDIFY;
+uint8_t workMode = MODE_MEASURE;
 
 void setup() {
   // Setup debug serial output
@@ -191,10 +192,13 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
         DebugSerial.print(F("Desired work mode:"));
         DebugSerial.println(work); 
         if( work == MODE_MANUAL ||
-            work == MODE_DEHUMIDIFY )
+            work == MODE_DEHUMIDIFY ||
+            work == MODE_MEASURE )
         {
            workMode = work; 
-        }        
+        } else {            
+           DebugSerial.print(F("Ignoring unknown work mode"));     
+        }
     } else if (type == 'f' ) { // fan pwm setting request
         long messageId = b.remove<long>();
         sendResponse(type, messageId, fanPwm);        
@@ -221,6 +225,9 @@ void loop() {
   if( workMode == MODE_DEHUMIDIFY)
   {
     loop_dehumidify();
+  } else if( workMode == MODE_MEASURE)
+  {
+    loop_measure();
   }
    
   analogWrite(FAN_PIN, fanPwm);
@@ -258,6 +265,58 @@ void loop_dehumidify() {
       setServoPercent(100);
     }
   }    
+}
+
+
+long last_measure_time = 0;
+
+enum measure_step { 
+  off1,
+  off2,
+  off3,
+  off4,
+  off5,
+  off6,
+  off7,
+  off8,
+  off9,
+  off10,
+  off11,
+  off12,
+  slow, 
+  medium, 
+  fast 
+  };
+
+measure_step state = off1;
+
+void loop_measure() {
+  if (millis() - last_dehumidify_time < 60000) return;
+  last_dehumidify_time = millis();
+  DebugSerial.print(F("Measure: state "));
+  DebugSerial.println(state);
+    
+  switch( state ) {
+    case slow:
+      setServoPercent(50);  
+      fanPwm = 1; 
+      state = (int)state + 1;
+      break;
+    case medium:
+      setServoPercent(50);  
+      fanPwm = 50;  
+      state = (int)state + 1;
+      break;
+    case fast:
+      setServoPercent(50);  
+      fanPwm = 255;   
+      state = off1;
+      break;
+    default:
+      setServoPercent(100);  
+      fanPwm = 1;   
+      state = (int)state + 1;
+  }
 }
 
 #define E 2.718281
