@@ -7,6 +7,7 @@ long idleVoltage = -1;
 long stuck_threshold = -1;
 
 byte servoQuality = 0;
+uint8_t valvePercentage = 0;
 
 long measureVoltage(){
     long voltage = 0;
@@ -30,7 +31,7 @@ bool isServoStuck(){
 }
 
 void setServoPercent(int percent) 
-{
+{  
     int pwm = map(percent, 0, 100, first, last);
     DebugSerial.print("Setting servo to");
     DebugSerial.println(pwm);
@@ -39,6 +40,7 @@ void setServoPercent(int percent)
     if( isServoStuck() )
        DebugSerial.println("ERROR Servo stuck!");
     SoftPWMSet(VALVE_SERVO_PIN, 0);    
+    valvePercentage = percent;
 }
 
 void setupServoWithDefaults()

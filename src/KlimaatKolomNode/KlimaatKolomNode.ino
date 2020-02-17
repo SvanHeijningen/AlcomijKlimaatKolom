@@ -40,13 +40,15 @@ SCD30 SCD30_a;
 long pulses = 0;
 long previousCalculationMs;
 
+uint8_t fanPwm = 1;
+
 void setup() {
   // Setup debug serial output
   DebugSerial.begin(115200);
   DebugSerial.println(F("Starting..."));
 
   //Set fan speed to a safe, low value
-  analogWrite(FAN_PIN, 5);
+  analogWrite(FAN_PIN, fanPwm);
     
   SHT31_a.begin(0x44);
   SHT31_b.begin(0x45);
@@ -69,6 +71,26 @@ void setup() {
   setupServo();  
 }
 
+void sendResponse( char type, long messageId, uint8_t value) {
+    ZBTxRequest txRequest;
+    txRequest.setAddress64(0x0000000000FFFF);
+    AllocBuffer<24> packet;
+    packet.append<uint8_t>(type);
+    packet.append<long>(messageId);
+    packet.append<uint8_t>(value);    
+    txRequest.setPayload(packet.head, packet.len());    
+    DebugSerial.print(F("Sending ")); 
+    DebugSerial.print(type);
+    DebugSerial.println(packet.len());
+    // And send it
+    uint8_t status = xbee.sendAndWait(txRequest, 5000);
+    if (status == 0) {
+      DebugSerial.println(F("Succesfully sent packet"));
+    } else {
+      DebugSerial.print(F("Failed to send packet. Status: 0x"));
+      DebugSerial.println(status, HEX);
+    }
+}
 
 void sendPacket() {
       float   temp_1 = SHT31_a.readTemperature();
@@ -148,16 +170,21 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
         DebugSerial.print(F("His humidity:"));
         DebugSerial.println(his_humidity);
     } else if (type == 'F' ) {
-        uint8_t pwm = b.remove<uint8_t>();
+        fanPwm = b.remove<uint8_t>();
         DebugSerial.print(F("Desired Fan PWM:"));
-        DebugSerial.println(pwm);     
-        analogWrite(FAN_PIN, pwm);
+        DebugSerial.println(fanPwm);     
+        analogWrite(FAN_PIN, fanPwm);
     } else if (type == 'V' ) {
-        uint8_t percentage = b.remove<uint8_t>();
+        uint8_t percent = b.remove<uint8_t>();
         DebugSerial.print(F("Desired Valve servo position:"));
-        DebugSerial.println(percentage); 
-        setServoPercent(percentage);
-        
+        DebugSerial.println(percent); 
+        setServoPercent(percent);        
+    } else if (type == 'f' ) { // fan pwm setting request
+        long messageId = b.remove<long>();
+        sendResponse(type, messageId, fanPwm);        
+    } else if (type == 'v' ) { // valve setting request
+        long messageId = b.remove<long>();
+        sendResponse(type, messageId, valvePercentage);        
     }
 }
 
