@@ -78,7 +78,7 @@ void sendPacket() {
       float   temp_2 = SCD30_a.getTemperature();
       float   humi_2= SCD30_a.getHumidity();
       float   co2_2 = SCD30_a.getCO2();
-      float   rpm =calculateRPM();       
+      float   rpm = calculateRPM();       
         Serial.print(F("=> temp_1:")); Serial.println(temp_1); 
         Serial.print(F("=> temp_2:")); Serial.println(temp_2); 
         Serial.print(F("=> temp_3:")); Serial.println(temp_3); 
@@ -98,6 +98,8 @@ void sendPacket() {
     packet.append<float>(humi_2);
     packet.append<float>(co2_2);
     packet.append<float>(rpm);
+    if( !packet.append<byte>(servoQuality)) Serial.print(F("ERROR packetbuffer too small"));
+    
     txRequest.setPayload(packet.head, packet.len());
     
     DebugSerial.print(F("Sending "));

@@ -3,7 +3,10 @@
 int first = -1;
 int last = -1;
 
+long idleVoltage = -1;
 long stuck_threshold = -1;
+
+byte servoQuality = 0;
 
 long measureVoltage(){
     long voltage = 0;
@@ -19,6 +22,10 @@ long measureVoltage(){
 bool isServoStuck(){
     long voltage = measureVoltage();
     bool stuck = voltage < stuck_threshold;
+    if( !stuck)
+      servoQuality = map(voltage, stuck_threshold, idleVoltage, 0, 100);
+    else
+      servoQuality = 0;
     return stuck;
 }
 
@@ -37,19 +44,19 @@ void setServoPercent(int percent)
 void setupServoWithDefaults()
 {
    first = 1;
-   last = 255;   
+   last = 33;   
 }
 
 void setupServoWithCurrentMeasuring() 
 {   
   DebugSerial.println(F("PWM\tAnalogRead"));
 
-  SoftPWMSet(VALVE_SERVO_PIN, 0);
-  long idleVoltage = measureVoltage();
+  SoftPWMSet(VALVE_SERVO_PIN, 00);
+  idleVoltage = measureVoltage();
   SoftPWMSet(VALVE_SERVO_PIN, 5);
-  delay(1000);
+  delay(2000);
   long stuckVoltage = measureVoltage();
-  stuck_threshold = (idleVoltage + stuckVoltage) / 2;
+  stuck_threshold = (idleVoltage + stuckVoltage + stuckVoltage) / 3;
   
   DebugSerial.print("Stuck threshold: ");
   DebugSerial.println(stuck_threshold);
@@ -90,6 +97,6 @@ void setupServo()
 {
   
   SoftPWMBegin();         
-  setupServoWithDefaults();
+  setupServoWithCurrentMeasuring();
   setServoPercent(50);
 }
