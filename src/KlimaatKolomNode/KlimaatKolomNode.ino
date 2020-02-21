@@ -29,9 +29,16 @@
 #include "Servo.h"
 #include <RingBuffer.h>
 
-#define MODE_MANUAL 0
-#define MODE_DEHUMIDIFY 1
-#define MODE_MEASURE 2
+enum WorkMode {
+  MIN_MODE = -1,
+  MODE_MANUAL,
+  MODE_DEHUMIDIFY,
+  MODE_MEASURE,
+  MODE_SETPOINT_TEMP,
+  MODE_SETPOINT_ABS_HUM,
+  MODE_SETPOINT_REL_HUM,  
+  MAX_MODE
+}; 
 
 XBeeWithCallbacks xbee;
 
@@ -45,10 +52,14 @@ long previousCalculationMs;
 
 uint8_t fanPwm = 1;
 
-uint8_t workMode = MODE_MANUAL;
+WorkMode workMode = MODE_MANUAL;
 
 struct sendData { char type; int messageId; byte value; };
 RingBuffer<sendData, 8> outboxBuffer;
+
+float temperatureSetpoint = NAN;
+float absoluteHumiditySetpoint = NAN;
+float relativeHumiditySetpoint = NAN;
 
 void setup() {
   // Setup debug serial output
@@ -229,13 +240,27 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
         uint8_t work = b.remove<uint8_t>();
         DebugSerial.print(F("Desired work mode:"));
         DebugSerial.println(work); 
-        if( work == MODE_MANUAL ||
-            work == MODE_DEHUMIDIFY ||
-            work == MODE_MEASURE )
+        if( work > MIN_MODE && work < MAX_MODE)
         {
            workMode = work; 
         } else {            
            DebugSerial.print(F("Ignoring unknown work mode"));     
+        }
+    } else if (type == 'S' ) {
+        char subtype = b.remove<char>();
+        DebugSerial.print(F("Change setpoint:"));
+        DebugSerial.println(subtype); 
+        if( subtype == 'T' )
+        {
+           temperatureSetpoint = b.remove<float>(); 
+        } else if( subtype == 'A')
+        {
+           absoluteHumiditySetpoint = b.remove<float>(); 
+        } else if( subtype == 'R')
+        {
+           relativeHumiditySetpoint = b.remove<float>(); 
+        } else {            
+           DebugSerial.print(F("Ignoring unknown setpoint"));     
         }
     } else if (type == 'f' ) { // fan pwm setting request
         long messageId = b.remove<long>();
@@ -262,12 +287,27 @@ void loop() {
     DebugSerial.println(freeMemory());
     sendPacket();
   }
-  if( workMode == MODE_DEHUMIDIFY)
+  switch( workMode)
   {
-    loop_dehumidify();
-  } else if( workMode == MODE_MEASURE)
-  {
-    loop_measure();
+    case MODE_MANUAL:
+      /*do nothing*/
+    break;
+    case MODE_DEHUMIDIFY:
+      loop_dehumidify();
+      break;
+    case MODE_MEASURE:
+      loop_measure();
+      break;
+    case MODE_SETPOINT_TEMP:
+        loop_setpoint_temp();
+      break;
+    case MODE_SETPOINT_ABS_HUM:
+  
+      break;
+    case MODE_SETPOINT_REL_HUM:
+      break;
+    default:
+      DebugSerial.println("unknown workmode");
   }
    
   analogWrite(FAN_PIN, fanPwm);
@@ -303,6 +343,48 @@ void loop_dehumidify() {
     } else {
       DebugSerial.println ("Action: air from down");    
       setServoPercent(100);
+    }
+  }    
+}
+
+
+long last_setpoint_time = 0;
+void loop_setpoint_temp() {
+  if (millis() - last_setpoint_time < 10000) return;
+  last_setpoint_time = millis();
+  
+  float temp_1 = SHT31_a.readTemperature(); //up
+  DebugSerial.print ("temp 1:");
+  DebugSerial.println (temp_1);
+  float temp_2 = SCD30_a.getTemperature(); //middle
+  DebugSerial.print ("temp 2:");
+  DebugSerial.println (temp_2);
+  float temp_3 = SHT31_b.readTemperature(); //down
+  DebugSerial.print ("temp 3:");
+  DebugSerial.println (temp_3);
+
+  if( abs(temp_2 - temperatureSetpoint) < 0.5) // on setpooint, so switch off fan
+  {    
+    DebugSerial.println (F("Action: off, on setpoint"));    
+    fanPwm = 1;    
+    setServoPercent(50);     
+  } else {
+    fanPwm = 50;  
+    bool need_more_heat = temp_2 < temperatureSetpoint;
+    if( (need_more_heat && temp_1 > temp_2 && temp_1 > temp_3 ) ||
+       !(need_more_heat && temp_1 < temp_2 && temp_1 < temp_3 ))
+    {        
+      DebugSerial.println(F("Action: air from up"));    
+      setServoPercent(0);     
+    } else if ((need_more_heat && temp_3 > temp_2 && temp_3 > temp_1 ) ||
+              !(need_more_heat && temp_3 < temp_2 && temp_3 < temp_1 ))
+    {
+      DebugSerial.println(F("Action: air from down"));    
+      setServoPercent(100);
+    } else {
+      DebugSerial.println(F("Action: off, no suitable climate"));    
+      fanPwm = 1;    
+      setServoPercent(50);         
     }
   }    
 }
