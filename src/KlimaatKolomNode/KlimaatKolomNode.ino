@@ -219,7 +219,8 @@ void loop() {
   // log a mark every 10 seconds
   if (millis() - last_tx_time > 10000) {
     last_tx_time = millis();
-    DebugSerial.println("Still here");
+    DebugSerial.print(F("Mem: "));
+    DebugSerial.println(freeMemory());
     sendPacket();
   }
   if( workMode == MODE_DEHUMIDIFY)
