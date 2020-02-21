@@ -21,6 +21,7 @@ int freeMemory() {
   return __brkval ? &top - __brkval : &top - __malloc_heap_start;
 #endif  // __arm__
 }
+
 struct Buffer {
   /* Wrap a buffer, containing the given number of
    * data bytes and a given remaining capacity (so total capacity is len
