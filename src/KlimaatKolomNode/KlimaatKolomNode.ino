@@ -27,6 +27,7 @@
 #include <SoftPWM.h>
 #include <SoftPWM_timer.h>
 #include "Servo.h"
+#include <RingBuffer.h>
 
 #define MODE_MANUAL 0
 #define MODE_DEHUMIDIFY 1
@@ -45,6 +46,9 @@ long previousCalculationMs;
 uint8_t fanPwm = 1;
 
 uint8_t workMode = MODE_MANUAL;
+
+struct sendData { char type; int messageId; byte value; };
+RingBuffer<sendData, 8> outboxBuffer;
 
 void setup() {
   // Setup debug serial output
@@ -75,7 +79,29 @@ void setup() {
   setupServo();  
 }
 
-void sendResponse( char type, long messageId, uint8_t value) {
+void queueResponse( char type, long messageId, uint8_t value) {
+  if( outboxBuffer.capacity() == outboxBuffer.size())
+      DebugSerial.println("response buffer full, overwriting oldest entry");
+  sendData response;
+  response.type = type;
+  response.messageId = messageId;
+  response.value = value; 
+  outboxBuffer.push(response);  
+  
+  DebugSerial.print("outboxBuffer size:");
+  DebugSerial.println(outboxBuffer.size());
+}
+
+void trySendFromOutbox() {
+  if( outboxBuffer.empty()){
+    return;
+  }
+  sendData response = outboxBuffer.front();
+  if(sendResponse(response.type, response.messageId, response.value));
+    outboxBuffer.pop();  
+}
+
+bool sendResponse( char type, long messageId, uint8_t value) {
     ZBTxRequest txRequest;
     txRequest.setAddress64(0x0000000000FFFF);
     AllocBuffer<24> packet;
@@ -90,9 +116,11 @@ void sendResponse( char type, long messageId, uint8_t value) {
     uint8_t status = xbee.sendAndWait(txRequest, 5000);
     if (status == 0) {
       DebugSerial.println(F("Succesfully sent packet"));
+      return true;
     } else {
       DebugSerial.print(F("Failed to send packet. Status: 0x"));
       DebugSerial.println(status, HEX);
+      return false;
     }
 }
 
@@ -201,13 +229,13 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
         }
     } else if (type == 'f' ) { // fan pwm setting request
         long messageId = b.remove<long>();
-        sendResponse(type, messageId, fanPwm);        
+        queueResponse(type, messageId, fanPwm);        
     } else if (type == 'v' ) { // valve setting request
         long messageId = b.remove<long>();
-        sendResponse(type, messageId, valvePercentage);        
+        queueResponse(type, messageId, valvePercentage);        
     } else if (type == 'w' ) { // workmode setting request
         long messageId = b.remove<long>();
-        sendResponse(type, messageId, workMode);        
+        queueResponse(type, messageId, workMode);        
     }
 }
 
@@ -216,6 +244,7 @@ unsigned long last_tx_time = 0;
 void loop() {
   // Check the serial port to see if there is a new packet available
   xbee.loop();
+  trySendFromOutbox();
   // log a mark every 10 seconds
   if (millis() - last_tx_time > 10000) {
     last_tx_time = millis();
