@@ -154,8 +154,8 @@ RPC_Response setNodePWM(const char messagetype, const RPC_Data &data)
 
 RPC_Response requestGetNodeValue(const char messagetype, const RPC_Data &data)
 {  
-  Serial.println("Received the set value RPC method");
-
+  Serial.println("Received the get value RPC method");
+  
   const char *deviceName = data["device"];
   Serial.print("for");
   Serial.println(deviceName);
@@ -255,7 +255,7 @@ void reconnect() {
         return;
       }  
       // register broadcast device
-      tb.connectDevice("000000000000FFFF");
+      tb.connectDevice("KK000000000000FFFF");
       Serial.println("Subscribe done");
       
       subscribed = true;
