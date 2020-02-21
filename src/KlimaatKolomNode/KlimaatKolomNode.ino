@@ -81,14 +81,24 @@ void setup() {
 
 void queueResponse( char type, long messageId, uint8_t value) {
   if( outboxBuffer.capacity() == outboxBuffer.size())
-      DebugSerial.println("response buffer full, overwriting oldest entry");
+      DebugSerial.println(F("response buffer full, overwriting oldest entry"));
+    
+  for(size_t i = 0; i < outboxBuffer.size(); ++i)
+  {
+    if( outboxBuffer[i].messageId = messageId) {
+      DebugSerial.println(F("ignoring duplicate message"));
+      return;
+    }
+  }
   sendData response;
   response.type = type;
   response.messageId = messageId;
   response.value = value; 
   outboxBuffer.push(response);  
   
-  DebugSerial.print("outboxBuffer size:");
+  DebugSerial.print(F("pushed message "));
+  DebugSerial.print(messageId);
+  DebugSerial.print(F(", buffer size "));
   DebugSerial.println(outboxBuffer.size());
 }
 
@@ -103,7 +113,7 @@ void trySendFromOutbox() {
 
 bool sendResponse( char type, long messageId, uint8_t value) {
     ZBTxRequest txRequest;
-    txRequest.setAddress64(0x0000000000FFFF);
+    txRequest.setAddress16(0x0000/* coordinator */);
     AllocBuffer<24> packet;
     packet.append<uint8_t>(type);
     packet.append<long>(messageId);
@@ -113,7 +123,7 @@ bool sendResponse( char type, long messageId, uint8_t value) {
     DebugSerial.print(type);
     DebugSerial.println(packet.len());
     // And send it
-    uint8_t status = xbee.sendAndWait(txRequest, 5000);
+    uint8_t status = xbee.sendAndWait(txRequest, 2000);
     if (status == 0) {
       DebugSerial.println(F("Succesfully sent packet"));
       return true;
@@ -140,7 +150,7 @@ void sendPacket() {
         Serial.print(F("=> rpm:   ")); Serial.println(rpm); 
     // Prepare the Zigbee Transmit Request API packet
     ZBTxRequest txRequest;
-    txRequest.setAddress64(0x0000000000FFFF);
+    txRequest.setAddress16(0x0000/* coordinator */);
 
     AllocBuffer<64> packet;
     if( !( 
@@ -164,7 +174,7 @@ void sendPacket() {
     DebugSerial.print(F("Sending "));
     DebugSerial.println(packet.len());
     // And send it
-    uint8_t status = xbee.sendAndWait(txRequest, 5000);
+    uint8_t status = xbee.sendAndWait(txRequest, 2000);
     if (status == 0) {
       DebugSerial.println(F("Succesfully sent packet"));
     } else {
