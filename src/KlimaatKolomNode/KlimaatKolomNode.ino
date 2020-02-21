@@ -372,12 +372,12 @@ void loop_setpoint_temp() {
     fanPwm = 50;  
     bool need_more_heat = temp_2 < temperatureSetpoint;
     if( (need_more_heat && temp_1 > temp_2 && temp_1 > temp_3 ) ||
-       !(need_more_heat && temp_1 < temp_2 && temp_1 < temp_3 ))
+       (!need_more_heat && temp_1 < temp_2 && temp_1 < temp_3 ))
     {        
       DebugSerial.println(F("Action: air from up"));    
       setServoPercent(0);     
     } else if ((need_more_heat && temp_3 > temp_2 && temp_3 > temp_1 ) ||
-              !(need_more_heat && temp_3 < temp_2 && temp_3 < temp_1 ))
+              (!need_more_heat && temp_3 < temp_2 && temp_3 < temp_1 ))
     {
       DebugSerial.println(F("Action: air from down"));    
       setServoPercent(100);
