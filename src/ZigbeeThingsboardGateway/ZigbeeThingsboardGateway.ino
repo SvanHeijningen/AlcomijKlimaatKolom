@@ -336,8 +336,18 @@ RPC_Callback callbacks[] = {
   { "getWorkMode",      processGetNodeWorkMode },
   { "setWorkMode",      processSetNodeWorkMode },
   { "getTempSetpoint",  processGetNodeTempSetpoint },
-  { "setTempSetpoint",  processSetNodeTempSetpoint }
+  { "setTempSetpoint",  processSetNodeTempSetpoint },
+  { "getAbsHumSetpoint",processGetNodeAbsHumSetpoint },
+  { "setAbsHumSetpoint",processSetNodeAbsHumSetpoint }
 };
+
+/*
+In thingsboard RPC Debug terminal:
+
+setValvePwm 0
+setFanPwm 50
+
+*/
 
 void reconnect() {
   // Loop until we're reconnected

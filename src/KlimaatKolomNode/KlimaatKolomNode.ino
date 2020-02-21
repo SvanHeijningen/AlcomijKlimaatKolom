@@ -35,8 +35,7 @@ enum WorkMode {
   MODE_DEHUMIDIFY,
   MODE_MEASURE,
   MODE_SETPOINT_TEMP,
-  MODE_SETPOINT_ABS_HUM,
-  MODE_SETPOINT_REL_HUM,  
+  MODE_SETPOINT_ABS_HUM, 
   MAX_MODE
 }; 
 
@@ -58,8 +57,7 @@ struct sendData { char type; int messageId; byte value; };
 RingBuffer<sendData, 8> outboxBuffer;
 
 float temperatureSetpoint = NAN;
-float absoluteHumiditySetpoint = NAN;
-float relativeHumiditySetpoint = NAN;
+float absoluteHumiditySetpoint = NAN; 
 
 void setup() {
   // Setup debug serial output
@@ -281,9 +279,6 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
         } else if( subtype == 'A')
         {
            absoluteHumiditySetpoint = b.remove<float>(); 
-        } else if( subtype == 'R')
-        {
-           relativeHumiditySetpoint = b.remove<float>(); 
         } else {            
            DebugSerial.print(F("Ignoring unknown setpoint"));     
         }
@@ -306,11 +301,9 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
         } else if( subtype == 'A')
         {
           setpoint = absoluteHumiditySetpoint;
-        } else if( subtype == 'R')
-        {
-          setpoint = relativeHumiditySetpoint;
         } else {            
           DebugSerial.print(F("Ignoring unknown setpoint"));     
+          DebugSerial.print(subtype);     
           setpoint = NAN;
         }
         sendSetpointResponse(type, subtype, messageId, setpoint);        
@@ -342,12 +335,10 @@ void loop() {
       loop_measure();
       break;
     case MODE_SETPOINT_TEMP:
-        loop_setpoint_temp();
+      loop_setpoint_temperature();
       break;
     case MODE_SETPOINT_ABS_HUM:
-  
-      break;
-    case MODE_SETPOINT_REL_HUM:
+      loop_setpoint_absoluteHumidity();
       break;
     default:
       DebugSerial.println("unknown workmode");
@@ -392,35 +383,48 @@ void loop_dehumidify() {
 
 
 long last_setpoint_time = 0;
-void loop_setpoint_temp() {
+void loop_setpoint_temperature() {
   if (millis() - last_setpoint_time < 10000) return;
   last_setpoint_time = millis();
   
   float temp_1 = SHT31_a.readTemperature(); //up
-  DebugSerial.print ("temp 1:");
-  DebugSerial.println (temp_1);
   float temp_2 = SCD30_a.getTemperature(); //middle
-  DebugSerial.print ("temp 2:");
-  DebugSerial.println (temp_2);
   float temp_3 = SHT31_b.readTemperature(); //down
-  DebugSerial.print ("temp 3:");
-  DebugSerial.println (temp_3);
+  do_control_loop(temp_1, temp_2, temp_3, temperatureSetpoint);
+}
 
-  if( abs(temp_2 - temperatureSetpoint) < 0.5) // on setpooint, so switch off fan
+void loop_setpoint_absoluteHumidity() {
+  if (millis() - last_setpoint_time < 10000) return;
+  last_setpoint_time = millis();
+  
+  float   hum_1 = get_absolute_humidity(SHT31_a.readTemperature(), SHT31_a.readHumidity()); //up 
+  float   hum_2 = get_absolute_humidity(SCD30_a.getTemperature(), SCD30_a.getHumidity()); //middle 
+  float   hum_3 = get_absolute_humidity(SHT31_b.readTemperature(), SHT31_b.readHumidity()); //down
+  do_control_loop(hum_1, hum_2, hum_3, absoluteHumiditySetpoint);
+}
+
+void do_control_loop(float v1, float v2, float v3, float setpoint)
+{
+  if( temperatureSetpoint == NAN )
+  {
+    DebugSerial.println(F("No setpoint"));
+    return;
+  }
+  if( abs(v2 - setpoint) < 0.5) // on setpooint, so switch off fan
   {    
     DebugSerial.println (F("Action: off, on setpoint"));    
     fanPwm = 1;    
     setServoPercent(50);     
   } else {
     fanPwm = 50;  
-    bool need_more_heat = temp_2 < temperatureSetpoint;
-    if( (need_more_heat && temp_1 > temp_2 && temp_1 > temp_3 ) ||
-       (!need_more_heat && temp_1 < temp_2 && temp_1 < temp_3 ))
+    bool need_more_heat = v2 < setpoint;
+    if( (need_more_heat && v1 > v2 && v1 > v3 ) ||
+       (!need_more_heat && v1 < v2 && v1 < v3 ))
     {        
       DebugSerial.println(F("Action: air from up"));    
       setServoPercent(0);     
-    } else if ((need_more_heat && temp_3 > temp_2 && temp_3 > temp_1 ) ||
-              (!need_more_heat && temp_3 < temp_2 && temp_3 < temp_1 ))
+    } else if ((need_more_heat && v3 > v2 && v3 > v1 ) ||
+              (!need_more_heat && v3 < v2 && v3 < v1 ))
     {
       DebugSerial.println(F("Action: air from down"));    
       setServoPercent(100);
@@ -431,7 +435,6 @@ void loop_setpoint_temp() {
     }
   }    
 }
-
 
 long last_measure_time = 0;
 
