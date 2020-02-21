@@ -145,6 +145,31 @@ bool sendResponse( char type, long messageId, uint8_t value) {
     }
 }
 
+bool sendSetpointResponse( char type, char subtype, long messageId, float value) {
+    ZBTxRequest txRequest;
+    txRequest.setAddress16(0x0000/* coordinator */);
+    AllocBuffer<24> packet;
+    packet.append<uint8_t>(type);
+    packet.append<uint8_t>(subtype);
+    packet.append<long>(messageId);
+    packet.append<float>(value);    
+    txRequest.setPayload(packet.head, packet.len());    
+    DebugSerial.print(F("Sending ")); 
+    DebugSerial.print(type);
+    DebugSerial.print(subtype);
+    DebugSerial.println(packet.len());
+    // And send it
+    uint8_t status = xbee.sendAndWait(txRequest, 2000);
+    if (status == 0) {
+      DebugSerial.println(F("Succesfully sent packet"));
+      return true;
+    } else {
+      DebugSerial.print(F("Failed to send packet. Status: 0x"));
+      DebugSerial.println(status, HEX);
+      return false;
+    }
+}
+
 void sendPacket() {
       float   temp_1 = SHT31_a.readTemperature();
       float   humi_1 = SHT31_a.readHumidity();
@@ -271,6 +296,24 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
     } else if (type == 'w' ) { // workmode setting request
         long messageId = b.remove<long>();
         queueResponse(type, messageId, workMode);        
+    } else if (type == 's' ) { // setpoint setting request
+        char subtype = b.remove<char>();
+        long messageId = b.remove<long>();
+        float setpoint;
+        if( subtype == 'T' )
+        {
+          setpoint = temperatureSetpoint; 
+        } else if( subtype == 'A')
+        {
+          setpoint = absoluteHumiditySetpoint;
+        } else if( subtype == 'R')
+        {
+          setpoint = relativeHumiditySetpoint;
+        } else {            
+          DebugSerial.print(F("Ignoring unknown setpoint"));     
+          setpoint = NAN;
+        }
+        sendSetpointResponse(type, subtype, messageId, setpoint);        
     }
 }
 

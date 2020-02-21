@@ -378,7 +378,7 @@ private:
       }
       const JsonObject &data = jsonBuffer.template as<JsonObject>();
       RPC_Data params;
-
+      serializeJson(jsonBuffer, Serial);
       const char *methodName = data["method"];
 
       if (methodName) {
@@ -471,7 +471,7 @@ private:
   }
 
   PubSubClient m_client;              // PubSub MQTT client instance.
-  RPC_Callback m_rpcCallbacks[8];     // RPC callbacks array
+  RPC_Callback m_rpcCallbacks[16];     // RPC callbacks array
 
   // PubSub client cannot call a method when message arrives on subscribed topic.
   // Only free-standing function is allowed.
