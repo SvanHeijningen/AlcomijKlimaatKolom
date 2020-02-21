@@ -316,15 +316,24 @@ RPC_Response processSetNodeWorkMode(const RPC_Data &data)
 RPC_Response processGetNodeTempSetpoint(const RPC_Data &data) 
 {   
   requestGetNodeSetpoint('T', data);
-  //fixme implement
   return RPC_Response(NULL, 0);
 }
 
 RPC_Response processSetNodeTempSetpoint(const RPC_Data &data)
 {
   return setNodeSetpoint('T', data);
+} 
+
+RPC_Response processGetNodeAbsHumSetpoint(const RPC_Data &data) 
+{   
+  requestGetNodeSetpoint('A', data);
+  return RPC_Response(NULL, 0);
 }
 
+RPC_Response processSetNodeAbsHumSetpoint(const RPC_Data &data)
+{
+  return setNodeSetpoint('A', data);
+} 
 // RPC handlers
 RPC_Callback callbacks[] = {
   { "getValue",         processGetValue },
