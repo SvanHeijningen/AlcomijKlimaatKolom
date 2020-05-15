@@ -356,6 +356,7 @@ bool getMacFromXbee()
   Serial.println(result); 
   Serial.println("Leaving Command mode");
   XBeeSerial.print("ATCN\r");
+  XBeeSerial.readStringUntil('\r');
   
   if( result.length() < 8)
     return false;
