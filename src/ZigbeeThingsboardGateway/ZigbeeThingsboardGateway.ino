@@ -14,7 +14,7 @@
 #define COUNT_OF(x) ((sizeof(x)/sizeof(0[x])) / ((size_t)(!(sizeof(x) % sizeof(0[x])))))
 
 // Update these with values suitable for your network.
-byte mac[]    = { 0xA8, 0x61, 0x0A, 0xAE, 0x3E, 0xAB };
+byte mac[6];
 
 char thingsboardServer[] = "10.2.0.122";
  
@@ -33,6 +33,47 @@ ThingsBoardSized<MQTT_MAX_PACKET_SIZE> tb(ethClient);
 
 XBeeWithCallbacks xbee;
 
+byte getByteFromString(String s, int index){
+  char* nibbles = new char[3];
+  s.substring(index, index + 2).toCharArray(nibbles, 3);
+  return (byte) strtol(nibbles, 0, 16);  
+}
+
+bool getMacFromXbee() 
+{
+  Serial.println("Entering Command mode");
+  XBeeSerial.setTimeout(1500);
+  delay(1000);
+  XBeeSerial.print("+++");
+  String result = XBeeSerial.readStringUntil('\r');
+  Serial.println(result);
+  if( result != "OK")
+    return false;
+  XBeeSerial.print("ATSL\r");
+  result = XBeeSerial.readStringUntil('\r');
+  Serial.println(result); 
+  Serial.println("Leaving Command mode");
+  XBeeSerial.print("ATCN\r");
+  if( result.length() < 8)
+    return false;
+  mac[0] = 0xA8;
+  mac[1] = 0x61;
+  mac[2] = getByteFromString(result, 0);
+  mac[3] = getByteFromString(result, 2);
+  mac[4] = getByteFromString(result, 4);
+  mac[5] = getByteFromString(result, 6);
+  
+  Serial.print("Mac address:");
+  for( int i = 0; i < 6; i++)
+  { 
+    Serial.print(mac[i], HEX);
+    Serial.print(' ');
+  }
+  Serial.println();  
+  return true;
+}
+
+
 void setup()
 {
   Serial.begin(115200);
@@ -40,8 +81,10 @@ void setup()
     ; // wait for serial port to connect. Needed for native USB port only
   }
   Serial.println("Hello");
-
   XBeeSerial.begin(9600);
+  
+  while (!getMacFromXbee()){};
+  
   xbee.begin(XBeeSerial);
   // Setup callbacks
   xbee.onZBRxResponse(processRxPacket);
