@@ -7,6 +7,8 @@ namespace TemperatureEqualizer.ThingsboardDtos
         public long Ts;
         public double Value;
         public DateTimeOffset Timestamp => DateTimeOffset.FromUnixTimeMilliseconds(Ts);
+
+        public string Key { get; internal set; }
     }
 
 }
