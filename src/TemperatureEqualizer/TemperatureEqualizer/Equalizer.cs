@@ -20,14 +20,19 @@ namespace TemperatureEqualizer
         public async Task DoEqualizeAsync()
         {
             IEnumerable<Device> climateControllers = await GetClimateControllers();
-            await SetAllToMeasurePosition(climateControllers);
-            await Task.Delay(TimeSpan.FromMinutes(1));
 
             var key = "temp_2";
-            Dictionary<Device, Telemetry> latestTelemetry = await GetLatestTelemetry(climateControllers, key);
+            // Get live controllers: controllers that have recent telemetry are likely to respond.            
+            var latestTelemetry = await GetLatestTelemetry(climateControllers, key);
+            IEnumerable<Device> liveDevices = latestTelemetry.Keys;
+            await SetAllToMeasurePosition(liveDevices);
+            Console.WriteLine("Waiting for stable readings");
+            await Task.Delay(TimeSpan.FromMinutes(1));
+
+            latestTelemetry = await GetLatestTelemetry(liveDevices, key);
 
             var avg = latestTelemetry.Values.Select(h => h.Value).Average();
-            Console.WriteLine($"Average {key}: {avg}");
+            Console.WriteLine($"Average {key}: {avg:0.00}");
 
             await Task.WhenAll(latestTelemetry.Select(kv => SetFanAndValveAsync(avg, kv)));
         }
@@ -74,11 +79,13 @@ namespace TemperatureEqualizer
 
         private async Task<Telemetry> GetTelemetry(string key, Device device)
         {
-            Console.WriteLine(device.Name);
+            Console.Write(device.Name);
             var telemetryResponse = await Helper.GetResponse($"/api/plugins/telemetry/{device.Id.entityType}/{device.Id.Id}/values/timeseries?keys={key}");
             dynamic content = await ThingsboardHelper.DeserializeJson(telemetryResponse);
             var measurement = content[key][0];
             var telemetry = new Telemetry { Ts = measurement.ts, RawValue = measurement.value, Key = key };
+            Console.WriteLine($" {telemetry.Timestamp} {telemetry.Key} {telemetry.Value:0.00}");
+
             return telemetry;
         }
 
