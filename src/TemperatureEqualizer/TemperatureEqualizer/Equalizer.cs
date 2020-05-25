@@ -78,7 +78,7 @@ namespace TemperatureEqualizer
             var telemetryResponse = await Helper.GetResponse($"/api/plugins/telemetry/{device.Id.entityType}/{device.Id.Id}/values/timeseries?keys={key}");
             dynamic content = await ThingsboardHelper.DeserializeJson(telemetryResponse);
             var measurement = content[key][0];
-            var telemetry = new Telemetry { Ts = measurement.ts, Value = measurement.value ?? double.NaN, Key = key };
+            var telemetry = new Telemetry { Ts = measurement.ts, RawValue = measurement.value, Key = key };
             return telemetry;
         }
 
