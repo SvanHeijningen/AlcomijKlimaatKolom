@@ -60,7 +60,8 @@ void loop()
 {  
   int timestamp = millis();
   if ( timestamp - lastSend > 10000 ) { // Keepalive
-    Serial.println( ".");
+    Serial.print(F("Mem: "));
+    Serial.println(freeMemory());
     lastSend = timestamp;
   } 
   
