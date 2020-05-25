@@ -59,6 +59,9 @@ RingBuffer<sendData, 8> outboxBuffer;
 float temperatureSetpoint = NAN;
 float absoluteHumiditySetpoint = NAN; 
 
+struct sendData { char type; int messageId; byte value; };
+RingBuffer<sendData, 8> outboxBuffer;
+
 void setup() {
   // Setup debug serial output
   DebugSerial.begin(115200);
