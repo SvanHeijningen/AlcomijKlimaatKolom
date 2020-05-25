@@ -156,10 +156,58 @@ RPC_Response setNodePWM(const char messagetype, const RPC_Data &data)
   return RPC_Response(NULL, pwm);
 }
 
-RPC_Response requestGetNodeValue(const char messagetype, const RPC_Data &data)
+
+RPC_Response setNodeSetpoint(char subtype, const RPC_Data &data)
 {  
   Serial.println("Received the set value RPC method");
 
+  const char *deviceName = data["device"];
+  Serial.print("for");
+  Serial.println(deviceName);
+    
+  Serial.print("setpoint type:");
+  Serial.println(subtype);
+  float setpoint = data["data"]["params"];
+  Serial.print("new setpoint:");
+  Serial.println(setpoint);
+
+  // Prepare the Zigbee Transmit Request API packet
+  ZBTxRequest txRequest;
+  String device = String(deviceName);
+  long addressMsb = strtol(device.substring(2,10).c_str(), NULL, 16);
+  long addressLsb = strtol(device.substring(10).c_str(), NULL, 16);
+  XBeeAddress64 destination = XBeeAddress64(addressMsb, addressLsb);
+  
+  Serial.print("Sending to ");
+  printHex(Serial, destination );
+  Serial.println();
+  
+  txRequest.setAddress64(destination);
+
+  AllocBuffer<27> packet;
+  packet.append<uint8_t>('S');
+  packet.append<uint8_t>(subtype);
+  packet.append<float>(setpoint);
+  txRequest.setPayload(packet.head, packet.len());
+  
+  Serial.print(F("Sending "));
+  Serial.println(packet.len());
+  // And send it
+  uint8_t status = xbee.sendAndWait(txRequest, 2000);
+  if (status == 0) {
+    Serial.println(F("Succesfully sent packet"));
+  } else {
+    Serial.print(F("Failed to send packet. Status: 0x"));
+    Serial.println(status, HEX);
+  }
+    
+  return RPC_Response(NULL, pwm);
+}
+
+RPC_Response requestGetNodeValue(const char messagetype, const RPC_Data &data)
+{  
+  Serial.println("Received the get value RPC method");
+  
   const char *deviceName = data["device"];
   Serial.print("for");
   Serial.println(deviceName);
@@ -182,6 +230,52 @@ RPC_Response requestGetNodeValue(const char messagetype, const RPC_Data &data)
 
   AllocBuffer<27> packet;
   packet.append<uint8_t>(messagetype);
+  if(! packet.append<long>(messageId))
+    Serial.print(F("send buffer too small"));
+  txRequest.setPayload(packet.head, packet.len());
+  
+  Serial.print(F("Sending "));
+  Serial.println(packet.len());
+  // And send it
+  uint8_t status = xbee.sendAndWait(txRequest, 5000);
+  if (status == 0) {
+    Serial.println(F("Succesfully sent packet"));
+  } else {
+    Serial.print(F("Failed to send packet. Status: 0x"));
+    Serial.println(status, HEX);
+  }
+    
+  return RPC_Response(NULL, pwm);
+}
+
+
+RPC_Response requestGetNodeSetpoint(const char subtype, const RPC_Data &data)
+{  
+  Serial.println("Received requestGetNodeSetpoint");
+  
+  const char *deviceName = data["device"];
+  Serial.print("for");
+  Serial.println(deviceName);
+  long messageId = data["data"]["id"];
+  Serial.print("requestId:");
+  Serial.println(messageId);
+
+  // Prepare the Zigbee Transmit Request API packet
+  ZBTxRequest txRequest;
+  String device = String(deviceName);
+  long addressMsb = strtol(device.substring(2,10).c_str(), NULL, 16);
+  long addressLsb = strtol(device.substring(10).c_str(), NULL, 16);
+  XBeeAddress64 destination = XBeeAddress64(addressMsb, addressLsb);
+  
+  Serial.print("Sending to ");
+  printHex(Serial, destination );
+  Serial.println();
+  
+  txRequest.setAddress64(destination);
+
+  AllocBuffer<27> packet;
+  packet.append<uint8_t>('s');
+  packet.append<uint8_t>(subtype);
   if(! packet.append<long>(messageId))
     Serial.print(F("send buffer too small"));
   txRequest.setPayload(packet.head, packet.len());
@@ -223,6 +317,27 @@ RPC_Response processSetNodeWorkMode(const RPC_Data &data)
   return setNodePWM('W', data);
 }
 
+RPC_Response processGetNodeTempSetpoint(const RPC_Data &data) 
+{   
+  requestGetNodeSetpoint('T', data);
+  return RPC_Response(NULL, 0);
+}
+
+RPC_Response processSetNodeTempSetpoint(const RPC_Data &data)
+{
+  return setNodeSetpoint('T', data);
+} 
+
+RPC_Response processGetNodeAbsHumSetpoint(const RPC_Data &data) 
+{   
+  requestGetNodeSetpoint('A', data);
+  return RPC_Response(NULL, 0);
+}
+
+RPC_Response processSetNodeAbsHumSetpoint(const RPC_Data &data)
+{
+  return setNodeSetpoint('A', data);
+} 
 // RPC handlers
 RPC_Callback callbacks[] = {
   { "getValue",         processGetValue },
@@ -232,8 +347,20 @@ RPC_Callback callbacks[] = {
   { "getValvePWM",      processGetNodeValvePWM },
   { "setValvePWM",      processSetNodeValvePWM },
   { "getWorkMode",      processGetNodeWorkMode },
-  { "setWorkMode",      processSetNodeWorkMode }
+  { "setWorkMode",      processSetNodeWorkMode },
+  { "getTempSetpoint",  processGetNodeTempSetpoint },
+  { "setTempSetpoint",  processSetNodeTempSetpoint },
+  { "getAbsHumSetpoint",processGetNodeAbsHumSetpoint },
+  { "setAbsHumSetpoint",processSetNodeAbsHumSetpoint }
 };
+
+/*
+In thingsboard RPC Debug terminal:
+
+setValvePwm 0
+setFanPwm 50
+
+*/
 
 void reconnect() {
   // Loop until we're reconnected
@@ -259,7 +386,7 @@ void reconnect() {
         return;
       }  
       // register broadcast device
-      tb.connectDevice("000000000000FFFF");
+      tb.connectDevice("KK000000000000FFFF");
       Serial.println("Subscribe done");
       
       subscribed = true;
@@ -331,6 +458,11 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
                type == 'w') {
       long messageId = b.remove<long>();
       uint8_t value = b.remove<uint8_t>();    
+      tb.sendGatewayRpcResponse(devicename, messageId, RPC_Response(NULL, value));
+    } else if (type == 's' ) {
+      char subtype = b.remove<char>();
+      long messageId = b.remove<long>();
+      float value = b.remove<float>();    
       tb.sendGatewayRpcResponse(devicename, messageId, RPC_Response(NULL, value));
     }
 }
