@@ -27,10 +27,17 @@
 #include <SoftPWM.h>
 #include <SoftPWM_timer.h>
 #include "Servo.h"
+#include <RingBuffer.h>
 
-#define MODE_MANUAL 0
-#define MODE_DEHUMIDIFY 1
-#define MODE_MEASURE 2
+enum WorkMode {
+  MIN_MODE = -1,
+  MODE_MANUAL,
+  MODE_DEHUMIDIFY,
+  MODE_MEASURE,
+  MODE_SETPOINT_TEMP,
+  MODE_SETPOINT_ABS_HUM, 
+  MAX_MODE
+}; 
 
 XBeeWithCallbacks xbee;
 
@@ -44,7 +51,16 @@ long previousCalculationMs;
 
 uint8_t fanPwm = 1;
 
-uint8_t workMode = MODE_MANUAL;
+WorkMode workMode = MODE_MANUAL;
+
+struct sendData { char type; int messageId; byte value; };
+RingBuffer<sendData, 8> outboxBuffer;
+
+float temperatureSetpoint = NAN;
+float absoluteHumiditySetpoint = NAN; 
+
+struct sendData { char type; int messageId; byte value; };
+RingBuffer<sendData, 8> outboxBuffer;
 
 void setup() {
   // Setup debug serial output
@@ -75,9 +91,41 @@ void setup() {
   setupServo();  
 }
 
-void sendResponse( char type, long messageId, uint8_t value) {
+void queueResponse( char type, long messageId, uint8_t value) {
+  if( outboxBuffer.capacity() == outboxBuffer.size())
+      DebugSerial.println(F("response buffer full, overwriting oldest entry"));
+    
+  for(size_t i = 0; i < outboxBuffer.size(); ++i)
+  {
+    if( outboxBuffer[i].messageId = messageId) {
+      DebugSerial.println(F("ignoring duplicate message"));
+      return;
+    }
+  }
+  sendData response;
+  response.type = type;
+  response.messageId = messageId;
+  response.value = value; 
+  outboxBuffer.push(response);  
+  
+  DebugSerial.print(F("pushed message "));
+  DebugSerial.print(messageId);
+  DebugSerial.print(F(", buffer size "));
+  DebugSerial.println(outboxBuffer.size());
+}
+
+void trySendFromOutbox() {
+  if( outboxBuffer.empty()){
+    return;
+  }
+  sendData response = outboxBuffer.front();
+  if(sendResponse(response.type, response.messageId, response.value));
+    outboxBuffer.pop();  
+}
+
+bool sendResponse( char type, long messageId, uint8_t value) {
     ZBTxRequest txRequest;
-    txRequest.setAddress64(0x0000000000FFFF);
+    txRequest.setAddress16(0x0000/* coordinator */);
     AllocBuffer<24> packet;
     packet.append<uint8_t>(type);
     packet.append<long>(messageId);
@@ -87,12 +135,39 @@ void sendResponse( char type, long messageId, uint8_t value) {
     DebugSerial.print(type);
     DebugSerial.println(packet.len());
     // And send it
-    uint8_t status = xbee.sendAndWait(txRequest, 5000);
+    uint8_t status = xbee.sendAndWait(txRequest, 2000);
     if (status == 0) {
       DebugSerial.println(F("Succesfully sent packet"));
+      return true;
     } else {
       DebugSerial.print(F("Failed to send packet. Status: 0x"));
       DebugSerial.println(status, HEX);
+      return false;
+    }
+}
+
+bool sendSetpointResponse( char type, char subtype, long messageId, float value) {
+    ZBTxRequest txRequest;
+    txRequest.setAddress16(0x0000/* coordinator */);
+    AllocBuffer<24> packet;
+    packet.append<uint8_t>(type);
+    packet.append<uint8_t>(subtype);
+    packet.append<long>(messageId);
+    packet.append<float>(value);    
+    txRequest.setPayload(packet.head, packet.len());    
+    DebugSerial.print(F("Sending ")); 
+    DebugSerial.print(type);
+    DebugSerial.print(subtype);
+    DebugSerial.println(packet.len());
+    // And send it
+    uint8_t status = xbee.sendAndWait(txRequest, 2000);
+    if (status == 0) {
+      DebugSerial.println(F("Succesfully sent packet"));
+      return true;
+    } else {
+      DebugSerial.print(F("Failed to send packet. Status: 0x"));
+      DebugSerial.println(status, HEX);
+      return false;
     }
 }
 
@@ -112,7 +187,7 @@ void sendPacket() {
         Serial.print(F("=> rpm:   ")); Serial.println(rpm); 
     // Prepare the Zigbee Transmit Request API packet
     ZBTxRequest txRequest;
-    txRequest.setAddress64(0x0000000000FFFF);
+    txRequest.setAddress16(0x0000/* coordinator */);
 
     AllocBuffer<64> packet;
     if( !( 
@@ -136,7 +211,7 @@ void sendPacket() {
     DebugSerial.print(F("Sending "));
     DebugSerial.println(packet.len());
     // And send it
-    uint8_t status = xbee.sendAndWait(txRequest, 5000);
+    uint8_t status = xbee.sendAndWait(txRequest, 2000);
     if (status == 0) {
       DebugSerial.println(F("Succesfully sent packet"));
     } else {
@@ -191,23 +266,50 @@ void processRxPacket(ZBRxResponse& rx, uintptr_t) {
         uint8_t work = b.remove<uint8_t>();
         DebugSerial.print(F("Desired work mode:"));
         DebugSerial.println(work); 
-        if( work == MODE_MANUAL ||
-            work == MODE_DEHUMIDIFY ||
-            work == MODE_MEASURE )
+        if( work > MIN_MODE && work < MAX_MODE)
         {
            workMode = work; 
         } else {            
            DebugSerial.print(F("Ignoring unknown work mode"));     
         }
+    } else if (type == 'S' ) {
+        char subtype = b.remove<char>();
+        DebugSerial.print(F("Change setpoint:"));
+        DebugSerial.println(subtype); 
+        if( subtype == 'T' )
+        {
+           temperatureSetpoint = b.remove<float>(); 
+        } else if( subtype == 'A')
+        {
+           absoluteHumiditySetpoint = b.remove<float>(); 
+        } else {            
+           DebugSerial.print(F("Ignoring unknown setpoint"));     
+        }
     } else if (type == 'f' ) { // fan pwm setting request
         long messageId = b.remove<long>();
-        sendResponse(type, messageId, fanPwm);        
+        queueResponse(type, messageId, fanPwm);        
     } else if (type == 'v' ) { // valve setting request
         long messageId = b.remove<long>();
-        sendResponse(type, messageId, valvePercentage);        
+        queueResponse(type, messageId, valvePercentage);        
     } else if (type == 'w' ) { // workmode setting request
         long messageId = b.remove<long>();
-        sendResponse(type, messageId, workMode);        
+        queueResponse(type, messageId, workMode);        
+    } else if (type == 's' ) { // setpoint setting request
+        char subtype = b.remove<char>();
+        long messageId = b.remove<long>();
+        float setpoint;
+        if( subtype == 'T' )
+        {
+          setpoint = temperatureSetpoint; 
+        } else if( subtype == 'A')
+        {
+          setpoint = absoluteHumiditySetpoint;
+        } else {            
+          DebugSerial.print(F("Ignoring unknown setpoint"));     
+          DebugSerial.print(subtype);     
+          setpoint = NAN;
+        }
+        sendSetpointResponse(type, subtype, messageId, setpoint);        
     }
 }
 
@@ -216,18 +318,33 @@ unsigned long last_tx_time = 0;
 void loop() {
   // Check the serial port to see if there is a new packet available
   xbee.loop();
+  trySendFromOutbox();
   // log a mark every 10 seconds
   if (millis() - last_tx_time > 10000) {
     last_tx_time = millis();
-    DebugSerial.println("Still here");
+    DebugSerial.print(F("Mem: "));
+    DebugSerial.println(freeMemory());
     sendPacket();
   }
-  if( workMode == MODE_DEHUMIDIFY)
+  switch( workMode)
   {
-    loop_dehumidify();
-  } else if( workMode == MODE_MEASURE)
-  {
-    loop_measure();
+    case MODE_MANUAL:
+      /*do nothing*/
+    break;
+    case MODE_DEHUMIDIFY:
+      loop_dehumidify();
+      break;
+    case MODE_MEASURE:
+      loop_measure();
+      break;
+    case MODE_SETPOINT_TEMP:
+      loop_setpoint_temperature();
+      break;
+    case MODE_SETPOINT_ABS_HUM:
+      loop_setpoint_absoluteHumidity();
+      break;
+    default:
+      DebugSerial.println("unknown workmode");
   }
    
   analogWrite(FAN_PIN, fanPwm);
@@ -267,6 +384,60 @@ void loop_dehumidify() {
   }    
 }
 
+
+long last_setpoint_time = 0;
+void loop_setpoint_temperature() {
+  if (millis() - last_setpoint_time < 10000) return;
+  last_setpoint_time = millis();
+  
+  float temp_1 = SHT31_a.readTemperature(); //up
+  float temp_2 = SCD30_a.getTemperature(); //middle
+  float temp_3 = SHT31_b.readTemperature(); //down
+  do_control_loop(temp_1, temp_2, temp_3, temperatureSetpoint);
+}
+
+void loop_setpoint_absoluteHumidity() {
+  if (millis() - last_setpoint_time < 10000) return;
+  last_setpoint_time = millis();
+  
+  float   hum_1 = get_absolute_humidity(SHT31_a.readTemperature(), SHT31_a.readHumidity()); //up 
+  float   hum_2 = get_absolute_humidity(SCD30_a.getTemperature(), SCD30_a.getHumidity()); //middle 
+  float   hum_3 = get_absolute_humidity(SHT31_b.readTemperature(), SHT31_b.readHumidity()); //down
+  do_control_loop(hum_1, hum_2, hum_3, absoluteHumiditySetpoint);
+}
+
+void do_control_loop(float v1, float v2, float v3, float setpoint)
+{
+  if( temperatureSetpoint == NAN )
+  {
+    DebugSerial.println(F("No setpoint"));
+    return;
+  }
+  if( abs(v2 - setpoint) < 0.5) // on setpooint, so switch off fan
+  {    
+    DebugSerial.println (F("Action: off, on setpoint"));    
+    fanPwm = 1;    
+    setServoPercent(50);     
+  } else {
+    fanPwm = 50;  
+    bool need_more_heat = v2 < setpoint;
+    if( (need_more_heat && v1 > v2 && v1 > v3 ) ||
+       (!need_more_heat && v1 < v2 && v1 < v3 ))
+    {        
+      DebugSerial.println(F("Action: air from up"));    
+      setServoPercent(0);     
+    } else if ((need_more_heat && v3 > v2 && v3 > v1 ) ||
+              (!need_more_heat && v3 < v2 && v3 < v1 ))
+    {
+      DebugSerial.println(F("Action: air from down"));    
+      setServoPercent(100);
+    } else {
+      DebugSerial.println(F("Action: off, no suitable climate"));    
+      fanPwm = 1;    
+      setServoPercent(50);         
+    }
+  }    
+}
 
 long last_measure_time = 0;
 
