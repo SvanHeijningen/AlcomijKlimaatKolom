@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
@@ -31,10 +32,24 @@ namespace TemperatureEqualizer
 
             latestTelemetry = await GetLatestTelemetry(liveDevices, key);
 
-            var avg = latestTelemetry.Values.Select(h => h.Value).Average();
-            Console.WriteLine($"Average {key}: {avg:0.00}");
+            if (latestTelemetry.Count > 4)
+            {
+                var values = latestTelemetry.Values.Select(h => h.Value).ToImmutableSortedSet();
 
-            await Task.WhenAll(latestTelemetry.Select(kv => SetFanAndValveAsync(avg, kv)));
+                Console.WriteLine($"Average {key}: {values.Average():0.00}");
+                Console.WriteLine($"Min {key}: {values.First():0.00}");
+                Console.WriteLine($"Max {key}: {values.Last():0.00}");
+                double quartile = values[values.Count / 4];
+                Console.WriteLine($"First quartile {key}: {quartile:0.00}");
+                Console.WriteLine($"Median         {key}: {values[values.Count / 2]:0.00}");
+                Console.WriteLine($"Last quartile  {key}: {values[3 * values.Count / 4]:0.00}");
+
+                await Task.WhenAll(latestTelemetry.Select(kv => SetFanAndValveAsync(quartile, kv)));
+            }
+            else
+            {
+                Console.WriteLine("Not enough data");
+            }
         }
 
         private async Task SetAllToMeasurePosition(IEnumerable<Device> climateControllers)
@@ -91,6 +106,8 @@ namespace TemperatureEqualizer
 
         private async Task SetFanAndValveAsync(double avg, KeyValuePair<Device, Telemetry> devicevalue)
         {
+            // de warmste van boven afzuigen
+
             // scale fanspeed between 0 (on avg) and 255 (2 deg deviation)
             var pwm = (int)(255 * Math.Min(Math.Abs(avg - devicevalue.Value.Value) / 2, 1));
 
