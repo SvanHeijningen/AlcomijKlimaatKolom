@@ -11,7 +11,7 @@ namespace TemperatureEqualizer
 {
     class ThingsboardHelper
     {
-        static HttpClient client = new HttpClient();
+        HttpClient client = new HttpClient();
 
         public ThingsboardHelper(string baseUri, NetworkCredential credential)
         {
