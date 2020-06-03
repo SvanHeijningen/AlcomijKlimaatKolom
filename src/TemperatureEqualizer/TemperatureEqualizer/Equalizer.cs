@@ -103,7 +103,7 @@ namespace TemperatureEqualizer
         private async Task SetFanAndValveAsync(Device key, int fan, int valve)
         {
             Console.WriteLine($"Setting {key.Name} to fan {fan}, valve {valve}");
-            var rpcresponse = await Helper.PostRpcAsync(key, "setFanPwm", $"\"{fan}\"");
+            var rpcresponse = await Helper.PostRpcAsync(key, "setFanPWM", $"\"{fan}\"");
             var valveresponse = await Helper.PostRpcAsync(key, "setValvePWM", $"\"{valve}\"");
             var message = await rpcresponse.Content.ReadAsStringAsync();
             rpcresponse.EnsureSuccessStatusCode();
