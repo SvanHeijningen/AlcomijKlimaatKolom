@@ -3,6 +3,7 @@ $name = (Get-ItemProperty .).Name
 pushd
 dotnet publish -r linux-x64
 cd bin\Debug\netcoreapp3.1\linux-x64\publish
-scp * root@${target}:test-equalize
+
+rsync -avh -e ssh root@${target}:test-equalize
 ssh root@${target} chmod +x test-equalize/TemperatureEqualizer
 popd
