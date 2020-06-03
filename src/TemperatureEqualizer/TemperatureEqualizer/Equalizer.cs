@@ -104,15 +104,15 @@ namespace TemperatureEqualizer
             return telemetry;
         }
 
-        private async Task SetFanAndValveAsync(double avg, KeyValuePair<Device, Telemetry> devicevalue)
+        private async Task SetFanAndValveAsync(double threshold, KeyValuePair<Device, Telemetry> devicevalue)
         {
             // de warmste van boven afzuigen
 
             // scale fanspeed between 0 (on avg) and 255 (2 deg deviation)
-            var pwm = (int)(255 * Math.Min(Math.Abs(avg - devicevalue.Value.Value) / 2, 1));
+            var pwm = (int)(255 * Math.Min(Math.Abs(threshold - devicevalue.Value.Value) / 2, 1));
 
             // set valve to up or down depending on whether it should cool or heat
-            var valve = devicevalue.Value.Value < avg ? 0 /*up*/: 100 /*down*/;
+            var valve = devicevalue.Value.Value > threshold ? 0 /*up*/: 100 /*down*/;
 
             await SetFanAndValveAsync(devicevalue.Key, pwm, valve);
         }
