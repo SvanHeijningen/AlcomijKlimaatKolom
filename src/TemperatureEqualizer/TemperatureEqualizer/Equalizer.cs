@@ -37,14 +37,16 @@ namespace TemperatureEqualizer
                 var values = latestTelemetry.Values.Select(h => h.Value).ToImmutableSortedSet();
 
                 Console.WriteLine($"Average {key}: {values.Average():0.00}");
-                Console.WriteLine($"Min {key}: {values.First():0.00}");
+                double minimum = values.First();
+                Console.WriteLine($"Min {key}: {minimum:0.00}");
                 Console.WriteLine($"Max {key}: {values.Last():0.00}");
+
                 double quartile = values[values.Count / 4];
                 Console.WriteLine($"First quartile {key}: {quartile:0.00}");
                 Console.WriteLine($"Median         {key}: {values[values.Count / 2]:0.00}");
                 Console.WriteLine($"Last quartile  {key}: {values[3 * values.Count / 4]:0.00}");
 
-                await Task.WhenAll(latestTelemetry.Select(kv => SetFanAndValveAsync(quartile, kv)));
+                await Task.WhenAll(latestTelemetry.Select(kv => SetFanAndValveAsync(minimum, kv)));
             }
             else
             {
@@ -59,7 +61,7 @@ namespace TemperatureEqualizer
             {
                 try
                 {
-                    await SetFanAndValveAsync(device, 20, 50);
+                    await SetFanAndValveAsync(device, 40, 50);
                 }
                 catch (Exception e)
                 {
@@ -107,9 +109,12 @@ namespace TemperatureEqualizer
         private async Task SetFanAndValveAsync(double threshold, KeyValuePair<Device, Telemetry> devicevalue)
         {
             // de warmste van boven afzuigen
-
-            // scale fanspeed between 0 (on avg) and 255 (2 deg deviation)
-            var pwm = (int)(255 * Math.Min(Math.Abs(threshold - devicevalue.Value.Value) / 2, 1));
+            int pwm;
+            if (devicevalue.Value.Value < threshold)
+                pwm = 0;
+            else
+                // scale fanspeed between 0 (on avg) and 255 (2 deg deviation)
+                pwm = (int)(255 * devicevalue.Value.Value - threshold) / 2;
 
             // set valve to up or down depending on whether it should cool or heat
             var valve = devicevalue.Value.Value > threshold ? 0 /*up*/: 100 /*down*/;
@@ -119,6 +124,17 @@ namespace TemperatureEqualizer
 
         private async Task SetFanAndValveAsync(Device key, int fan, int valve)
         {
+
+            if (fan > 255)
+                fan = 255;
+            if (fan < 0)
+                fan = 0;
+
+            if (valve > 100)
+                valve = 100;
+            if (valve < 0)
+                valve = 0;
+
             Console.WriteLine($"Setting {key.Name} to fan {fan}, valve {valve}");
             var rpcresponse = await Helper.PostRpcAsync(key, "setFanPWM", $"\"{fan}\"");
             var valveresponse = await Helper.PostRpcAsync(key, "setValvePWM", $"\"{valve}\"");
