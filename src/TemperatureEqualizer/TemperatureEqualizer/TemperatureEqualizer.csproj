@@ -10,4 +10,13 @@
     <PackageReference Include="System.CommandLine.DragonFruit" Version="0.3.0-alpha.20253.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Scripts\Install.sh">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Scripts\SetBootService.sh">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

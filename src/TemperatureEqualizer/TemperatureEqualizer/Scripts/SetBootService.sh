@@ -42,7 +42,7 @@ After=syslog.target network-online.target
 Type=simple
 WorkingDirectory=$workingDir
 EnvironmentFile=$environmentConfig
-ExecStart=$fileExec
+ExecStart=$fileExec --username=\$THINGSBOARDUSER --password=\$THINGSBOARDPASS
 Restart=on-failure
 RestartSec=10
 KillMode=process
@@ -58,6 +58,8 @@ then
 echo Creating sample $environmentConfig
 echo "ASPNETCORE_ENVIRONMENT=Development
 ALCOMIJDIR=/etc/alcomij
+THINGSBOARDUSER=s.vanheijningen@alcomij.nl
+THINGSBOARDPASS="thepassword!!&"
 " > $environmentConfig
 fi
 echo "Start service"
