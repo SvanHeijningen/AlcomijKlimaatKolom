@@ -59,9 +59,6 @@ RingBuffer<sendData, 8> outboxBuffer;
 float temperatureSetpoint = NAN;
 float absoluteHumiditySetpoint = NAN; 
 
-struct sendData { char type; int messageId; byte value; };
-RingBuffer<sendData, 8> outboxBuffer;
-
 void setup() {
   // Setup debug serial output
   DebugSerial.begin(115200);
@@ -172,10 +169,10 @@ bool sendSetpointResponse( char type, char subtype, long messageId, float value)
 }
 
 void sendPacket() {
-      float   temp_1 = SHT31_a.readTemperature();
-      float   humi_1 = SHT31_a.readHumidity();
-      float   temp_3= SHT31_b.readTemperature();
-      float   humi_3 = SHT31_b.readHumidity();
+      float   temp_3 = SHT31_a.readTemperature();
+      float   humi_3 = SHT31_a.readHumidity();
+      float   temp_1= SHT31_b.readTemperature();
+      float   humi_1 = SHT31_b.readHumidity();
       float   temp_2 = SCD30_a.getTemperature();
       float   humi_2= SCD30_a.getHumidity();
       float   co2_2 = SCD30_a.getCO2();
